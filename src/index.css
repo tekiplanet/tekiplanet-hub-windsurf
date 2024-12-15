@@ -1,0 +1,120 @@
+@import './styles/global.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 70% 98%; /* Light background */
+    --foreground: 240 10% 10%; /* Dark text */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    
+    /* Primary: Dark Blue (#141F78) */
+    --primary: 240 80% 25%; 
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+    --primary-hover: 20 100% 50%; /* Orange hover for primary */
+    
+    /* Secondary: Slightly Darker Blue (#141F77) */
+    --secondary: 240 80% 24%; 
+    --secondary-foreground: 0 0% 100%; /* White text on secondary */
+    --secondary-hover: 20 100% 50%; /* Orange hover for secondary */
+    
+    /* Accent: Bright Blue (#0033AB) */
+    --accent: 220 100% 35%; 
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    --accent-hover: 240 80% 25%; /* Orange hover for accent */
+    
+    /* Highlight: Orange (#F25100) */
+    --destructive: 20 100% 50%; 
+    --destructive-foreground: 0 0% 100%; /* White text on highlight */
+    
+    --muted: 240 10% 90%;
+    --muted-foreground: 240 10% 45%; /* Light mode muted foreground */
+    
+    --border: 240 10% 85%;
+    --input: 240 10% 85%;
+    --ring: 240 10% 10%;
+    --radius: 0.5rem;
+  }
+ 
+  .dark {
+    --background: 0 0% 0%; /* Pure black background */
+    --foreground: 0 0% 98%; /* Light text */
+    --card: 240 10% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 10%;
+    --popover-foreground: 0 0% 98%;
+    
+    /* Primary: Dark Blue (#141F78) */
+    --primary: 20 100% 50%; 
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+    --primary-hover: 20 100% 50%; /* Orange hover for primary */
+    
+    /* Secondary: Slightly Orange (#141F77) */
+    --secondary: 240 80% 25%; 
+    --secondary-foreground: 0 0% 100%; /* White text on secondary */
+    --secondary-hover: 20 100% 50%; /* Orange hover for secondary */
+    
+    /* Accent: Bright Blue (#0033AB) */
+    --accent: 220 100% 35%; 
+    --accent-foreground: 0 0% 100%; /* White text on accent */
+    --accent-hover: 20 100% 50%; /* Orange hover for accent */
+    
+    /* Highlight: Orange (#F25100) */
+    --destructive: 20 100% 50%; 
+    --destructive-foreground: 0 0% 100%; /* White text on highlight */
+    
+    --muted: 240 10% 20%;
+    --muted-foreground: 240 10% 70%; /* Dark mode muted foreground */
+    
+    --border: 240 10% 20%;
+    --input: 240 10% 20%;
+    --ring: 240 10% 80%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.glass-card {
+  @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-xl;
+}
+
+.hover-scale {
+  @apply transition-transform duration-300 hover:scale-105;
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
+}
+
+@layer utilities {
+  .floating {
+    @apply animate-float;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+[data-theme='light'] {
+  --primary-foreground: 255 255 255;
+}
+
+[data-theme='dark'] {
+  --primary-foreground: 255 255 255;
+}
