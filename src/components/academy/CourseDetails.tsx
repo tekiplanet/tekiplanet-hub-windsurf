@@ -63,11 +63,30 @@ export default function CourseDetails() {
   const [showInsufficientFundsModal, setShowInsufficientFundsModal] = React.useState(false);
 
   if (isCourseLoading) {
-    return <div>Loading course details...</div>;
+    return (
+      <Dashboard>
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-primary"></div>
+        </div>
+      </Dashboard>
+    );
   }
 
   if (courseError || !course) {
-    return <div>Failed to load course details</div>;
+    return (
+      <Dashboard>
+        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+          <h1 className="text-6xl font-bold text-primary mb-4">404</h1>
+          <p className="text-2xl text-muted-foreground mb-4">Course Not Found</p>
+          <p className="text-muted-foreground mb-6">
+            The course you are looking for might have been removed or is temporarily unavailable.
+          </p>
+          <Button onClick={() => navigate('/dashboard/academy')}>
+            Back to Courses
+          </Button>
+        </div>
+      </Dashboard>
+    );
   }
 
   const handleEnroll = async () => {
@@ -442,9 +461,7 @@ export default function CourseDetails() {
                         >
                           {loading ? 'Enrolling...' : 'Enroll Now'}
                         </Button>
-                        <div className="text-xl font-bold">
-                          {formatCurrency(course.price)}
-                        </div>
+
                       </div>
                       <p className="text-xs text-center text-muted-foreground">
                         Wallet Balance: {formatCurrency(balance)}

@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query"
 import apiClient from '@/lib/axios';
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import Dashboard from "@/pages/Dashboard";
+
+
 import { Badge } from "@/components/ui/badge"
 import { useNavigate } from "react-router-dom"
 import { 
@@ -74,9 +77,11 @@ export default function Academy() {
 
   if (coursesQuery.isLoading || settingsQuery.isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        Loading courses...
-      </div>
+        <div className="container mx-auto px-4 py-8 text-center">
+          <div className="flex justify-center items-center min-h-[300px]">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-primary"></div>
+          </div>
+        </div>
     );
   }
 
