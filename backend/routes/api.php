@@ -8,6 +8,7 @@ use App\Http\Controllers\UserPreferencesController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\CourseController;
 
 /*
 |--------------------------------------------------------------------------
@@ -48,3 +49,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/user/preferences', [UserController::class, 'updatePreferences']);
     Route::put('/user/type', [UserController::class, 'updateUserType']);
 });
+
+// Course Routes
+Route::get('/courses', [CourseController::class, 'index']);
+Route::get('/courses/{id}', [CourseController::class, 'show']);
