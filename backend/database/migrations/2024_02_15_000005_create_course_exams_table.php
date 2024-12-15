@@ -13,13 +13,13 @@ return new class extends Migration
             $table->uuid('course_id');
             
             $table->string('title');
-            $table->string('type');
-            $table->timestamp('date');
-            $table->string('duration');
-            $table->enum('status', ['scheduled', 'ongoing', 'completed', 'cancelled'])
-                  ->default('scheduled');
-            
-            $table->json('topics')->nullable();
+            $table->text('description')->nullable();
+            $table->integer('total_questions');
+            $table->integer('pass_percentage');
+            $table->integer('duration_minutes');
+            $table->enum('type', ['multiple_choice', 'true_false', 'mixed']);
+            $table->enum('difficulty', ['beginner', 'intermediate', 'advanced']);
+            $table->boolean('is_mandatory')->default(false);
             
             $table->foreign('course_id')
                   ->references('id')

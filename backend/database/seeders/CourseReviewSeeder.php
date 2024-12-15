@@ -7,14 +7,31 @@ use App\Models\Course;
 use App\Models\User;
 use App\Models\CourseReview;
 use Faker\Factory as Faker;
+use Illuminate\Support\Str;
 
 class CourseReviewSeeder extends Seeder
 {
     public function run(): void
     {
         $faker = Faker::create();
+        
+        // Ensure courses exist
+        if (Course::count() === 0) {
+            $this->call(CourseSeeder::class);
+        }
+        
+        // Ensure users exist
+        if (User::count() === 0) {
+            $this->call(UserSeeder::class);
+        }
+
         $courses = Course::all();
         $users = User::all();
+
+        if ($courses->isEmpty() || $users->isEmpty()) {
+            $this->command->warn('No courses or users found to seed reviews.');
+            return;
+        }
 
         foreach ($courses as $course) {
             // Create 5-10 reviews per course
@@ -24,6 +41,7 @@ class CourseReviewSeeder extends Seeder
                 $user = $users->random();
                 
                 CourseReview::create([
+                    'id' => Str::uuid(),
                     'course_id' => $course->id,
                     'user_id' => $user->id,
                     'rating' => $faker->numberBetween(3, 5),

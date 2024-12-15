@@ -5,17 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-class CourseModule extends Model
+class CourseLesson extends Model
 {
     public $incrementing = false;
     protected $keyType = 'string';
 
     protected $fillable = [
-        'course_id', 
+        'module_id', 
         'title', 
         'description', 
+        'content_type', 
+        'duration_minutes', 
         'order', 
-        'duration_hours'
+        'resource_url', 
+        'is_preview'
     ];
 
     protected static function boot()
@@ -28,18 +31,8 @@ class CourseModule extends Model
         });
     }
 
-    public function course()
+    public function module()
     {
-        return $this->belongsTo(Course::class);
-    }
-
-    public function topics()
-    {
-        return $this->hasMany(CourseTopic::class, 'module_id');
-    }
-
-    public function lessons()
-    {
-        return $this->hasMany(CourseLesson::class, 'module_id');
+        return $this->belongsTo(CourseModule::class, 'module_id');
     }
 }
