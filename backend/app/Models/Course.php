@@ -19,7 +19,18 @@ class Course extends Model
         'instructor', 
         'image_url', 
         'duration_hours', 
-        'status'
+        'status',
+        'rating',
+        'total_reviews',
+        'total_students',
+        'prerequisites',
+        'learning_outcomes'
+    ];
+
+    protected $casts = [
+        'prerequisites' => 'array',
+        'learning_outcomes' => 'array',
+        'rating' => 'float'
     ];
 
     protected static function boot()
@@ -55,5 +66,23 @@ class Course extends Model
     public function schedules()
     {
         return $this->hasMany(CourseSchedule::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(CourseReview::class);
+    }
+
+    public function updateRating()
+    {
+        $averageRating = $this->reviews()->avg('rating');
+        $totalReviews = $this->reviews()->count();
+
+        $this->update([
+            'rating' => round($averageRating, 2),
+            'total_reviews' => $totalReviews
+        ]);
+
+        return $this;
     }
 }

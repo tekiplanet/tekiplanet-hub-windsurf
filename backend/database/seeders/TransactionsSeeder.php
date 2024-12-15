@@ -54,7 +54,7 @@ class TransactionsSeeder extends Seeder
         $finalTransactions = array_map(function($transaction) {
             return array_merge($transaction, [
                 'id' => Str::uuid(),
-                'user_id' => '1', // Always user with id 1
+                'user_id' => 'b1ffbc05-67c7-44da-9c63-a76aebcb9d41', // Always user with id 1
                 'status' => 'completed',
                 'created_at' => Carbon::now()->subDays(rand(1, 90)),
                 'updated_at' => Carbon::now(),

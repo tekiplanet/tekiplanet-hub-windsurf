@@ -16,9 +16,14 @@ return new class extends Migration
             $table->string('level');
             $table->decimal('price', 10, 2);
             $table->string('instructor');
-            $table->string('image_url')->nullable();
+            $table->text('image_url')->nullable();
             $table->integer('duration_hours')->nullable();
             $table->enum('status', ['draft', 'active', 'archived'])->default('draft');
+            $table->float('rating')->default(0);
+            $table->integer('total_reviews')->default(0);
+            $table->integer('total_students')->default(0);
+            $table->json('prerequisites')->nullable();
+            $table->json('learning_outcomes')->nullable();
             $table->timestamps();
         });
     }
