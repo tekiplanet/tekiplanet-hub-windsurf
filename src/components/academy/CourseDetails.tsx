@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { Course } from "@/data/mockCourses";
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 interface EnrollmentResponse {
   success: boolean;
@@ -78,6 +79,7 @@ export default function CourseDetails() {
   });
 
   const [showInsufficientFundsModal, setShowInsufficientFundsModal] = React.useState(false);
+  const [showConfirmEnrollmentModal, setShowConfirmEnrollmentModal] = React.useState(false);
 
   if (isCourseLoading) {
     return (
@@ -106,13 +108,37 @@ export default function CourseDetails() {
     );
   }
 
-  const handleEnroll = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please login to enroll in this course",
-        variant: "destructive"
+  const handleConfirmEnrollment = async () => {
+    setShowConfirmEnrollmentModal(false);
+    setLoading(true);
+
+    try {
+      const response = await courseService.enrollInCourse({
+        courseId: course.id,
+        userId: user.id,
+        amount: ENROLLMENT_FEE
       });
+
+      if (response.success && response.data) {
+        toast.success('Successfully enrolled in the course!', {
+          description: `You are now enrolled in ${course.title}`
+        });
+        
+        // Navigate to the course page or dashboard
+        navigate('/dashboard/academy');
+      }
+    } catch (error) {
+      toast.error('Enrollment failed', {
+        description: 'There was an issue enrolling in the course. Please try again.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEnroll = () => {
+    if (!user) {
+      toast.error('Please log in to enroll');
       return;
     }
 
@@ -121,59 +147,8 @@ export default function CourseDetails() {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const response = await courseService.enrollInCourse({
-        courseId: courseId!,
-        userId: user.id,
-        amount: ENROLLMENT_FEE
-      });
-
-      if (response.success && response.data) {
-        // Deduct enrollment fee
-        // walletStore.deductBalance(user.id, ENROLLMENT_FEE);
-        
-        // Record transaction
-        // walletStore.addTransaction(user.id, {
-        //   id: response.data.transactionId,
-        //   type: 'debit',
-        //   amount: ENROLLMENT_FEE,
-        //   description: `Course enrollment: ${course.title}`,
-        //   date: new Date().toISOString()
-        // });
-
-        // Create enrollment object with all necessary data
-        const enrollmentData = {
-          courseId: course.id,
-          enrollmentDate: new Date().toISOString(),
-          transactionId: response.data.transactionId,
-          userId: user.id,
-          tuitionPaid: false,
-          tuitionFee: course.price,
-          paymentPlan: 'full' as const, // Explicitly type as 'full' | 'installment'
-          progress: 0,
-          lastAccessed: new Date().toISOString(),
-          nextLesson: course.curriculum?.[0]?.title || "Introduction",
-          nextDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
-        };
-
-        // Get existing enrollments and add new one
-        const existingEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-        localStorage.setItem('enrollments', JSON.stringify([...existingEnrollments, enrollmentData]));
-
-        toast.success("Successfully enrolled in the course!");
-
-        // Navigate to my courses page with a small delay to ensure data is saved
-        setTimeout(() => {
-          navigate('/dashboard/academy/my-courses');
-        }, 100);
-      }
-    } catch (error) {
-      toast.error("Failed to enroll in course. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    // Show confirmation modal instead of directly enrolling
+    setShowConfirmEnrollmentModal(true);
   };
 
   const handleFundWallet = () => {
@@ -513,6 +488,13 @@ export default function CourseDetails() {
           requiredAmount={ENROLLMENT_FEE}
           currentBalance={walletBalance}
           type="enrollment"
+        />
+        <ConfirmationModal
+          open={showConfirmEnrollmentModal}
+          onClose={() => setShowConfirmEnrollmentModal(false)}
+          onConfirm={handleConfirmEnrollment}
+          title="Confirm Enrollment"
+          description={`Are you sure you want to enroll in ${course.title}?`}
         />
       </div>
     </Dashboard>
