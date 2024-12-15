@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import apiClient from '@/lib/axios';
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,112 +18,27 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-const mockCourses = [
-  {
-    id: "1",
-    title: "Web Development Fundamentals",
-    description: "Learn the basics of web development with HTML, CSS, and JavaScript",
-    level: "Beginner",
-    duration: "8 weeks",
-    price: 99000.99,
-    students: 1234,
-    rating: 4.5,
-    category: "Web Development",
-    instructor: "Dr. Sarah Johnson",
-    image: "https://images.unsplash.com/photo-1593720213428-28a5b9e94613?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: "2",
-    title: "Advanced React Patterns",
-    description: "Master advanced React concepts and design patterns for scalable applications",
-    level: "Advanced",
-    duration: "6 weeks",
-    price: 149000.99,
-    students: 856,
-    rating: 4.8,
-    category: "Frontend",
-    instructor: "Prof. Michael Chen",
-    image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: "3",
-    title: "Cybersecurity Essentials",
-    description: "Learn fundamental cybersecurity concepts and practices for digital safety",
-    level: "Intermediate",
-    price: 199000.99,
-    duration: "10 weeks",
-    students: 567,
-    rating: 4.6,
-    category: "Security",
-    instructor: "Dr. Alex Thompson",
-    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: "4",
-    title: "UI/UX Design Masterclass",
-    description: "Create stunning user interfaces and exceptional user experiences",
-    level: "Intermediate",
-    duration: "12 weeks",
-    price: 179000.99,
-    students: 923,
-    rating: 4.7,
-    category: "Design",
-    instructor: "Emma Rodriguez",
-    image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: "5",
-    title: "Mobile App Development",
-    description: "Build cross-platform mobile applications using React Native",
-    level: "Intermediate",
-    duration: "10 weeks",
-    price: 149000.99,
-    students: 782,
-    rating: 4.4,
-    category: "Mobile Development",
-    instructor: "James Wilson",
-    image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: "6",
-    title: "Data Science Fundamentals",
-    description: "Introduction to data analysis, visualization, and machine learning",
-    level: "Beginner",
-    duration: "14 weeks",
-    price: 199000.99,
-    students: 1567,
-    rating: 4.9,
-    category: "Data Science",
-    instructor: "Dr. Lisa Wang",
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: "7",
-    title: "Cloud Computing with AWS",
-    description: "Master cloud services and deployment with Amazon Web Services",
-    level: "Advanced",
-    duration: "8 weeks",
-    price: 189000.99,
-    students: 645,
-    rating: 4.7,
-    category: "Cloud Computing",
-    instructor: "Mark Anderson",
-    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    id: "8",
-    title: "Digital Marketing Strategy",
-    description: "Learn modern digital marketing techniques and growth strategies",
-    level: "Beginner",
-    duration: "6 weeks",
-    price: 89000.99,
-    students: 1123,
-    rating: 4.5,
-    category: "Marketing",
-    instructor: "Sarah Miller",
-    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2070&auto=format&fit=crop"
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  level: string;
+  price: number | string;
+  instructor: string;
+  duration_hours: number;
+  image_url?: string;
+}
+
+const fetchCourses = async (): Promise<Course[]> => {
+  try {
+    const response = await apiClient.get('/api/courses');
+    return response.data.courses || [];
+  } catch (error) {
+    console.error("Failed to fetch courses", error);
+    return [];
   }
-];
+};
 
 export default function Academy() {
   const navigate = useNavigate()
@@ -130,7 +46,29 @@ export default function Academy() {
   const [selectedLevel, setSelectedLevel] = useState<string>("all")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
-  const filteredCourses = mockCourses.filter((course) => {
+  const { data: courses = [], isLoading, error } = useQuery<Course[]>({
+    queryKey: ['courses'],
+    queryFn: fetchCourses,
+    placeholderData: [] // Provide a default empty array
+  });
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        Loading courses...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center text-red-500">
+        Failed to load courses. Please try again later.
+      </div>
+    );
+  }
+
+  const filteredCourses = courses.filter((course) => {
     const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          course.description.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesLevel = selectedLevel === "all" || course.level.toLowerCase() === selectedLevel
@@ -198,7 +136,7 @@ export default function Academy() {
               <CardContent className="p-0">
                 <div className="relative aspect-video">
                   <img 
-                    src={course.image} 
+                    src={course.image_url} 
                     alt={course.title}
                     className="object-cover w-full h-full"
                   />
@@ -215,36 +153,35 @@ export default function Academy() {
                   </Badge>
                 </div>
                 <div className="p-4 space-y-3">
-                  <div>
-                    <h3 className="font-semibold mb-1 line-clamp-1">{course.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {course.description}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{course.duration}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{course.students} students</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-yellow-500">
-                      <Star className="h-4 w-4 fill-current" />
-                      <span>{course.rating}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <BookOpen className="h-4 w-4" />
-                      <span>{course.category}</span>
+                  <div className="flex justify-between items-center">
+                    <Badge variant="secondary">{course.category}</Badge>
+                    <div className="flex items-center text-muted-foreground">
+                      <Clock className="h-4 w-4 mr-1" />
+                      <span>{course.duration_hours} hours</span>
                     </div>
                   </div>
-                  <div className="pt-3 border-t">
+                  <h3 className="text-lg font-semibold line-clamp-2">{course.title}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-3">{course.description}</p>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <GraduationCap className="h-4 w-4 mr-1 text-primary" />
+                      <span className="text-sm">{course.instructor}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Star className="h-4 w-4 mr-1 text-yellow-500" />
+                      <span className="text-sm font-semibold">4.5</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-lg font-bold text-primary">
+                      ${Number(course.price).toFixed(2)}
+                    </div>
                     <Button 
-                      className="w-full text-white"
-                      onClick={() => navigate(`/dashboard/academy/${course.id}`)}
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => navigate(`/course/${course.id}`)}
                     >
-                      Enroll Now
+                      View Course
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </div>
