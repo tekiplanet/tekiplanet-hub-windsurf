@@ -13,9 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { useAuthStore } from '@/store/useAuthStore';
 import { useWalletStore } from '@/store/useWalletStore';
 import { courseService } from '@/services/courseService';
-import { useAuthStore } from '@/store/useAuthStore';
 import { InsufficientFundsModal } from "@/components/wallet/InsufficientFundsModal";
 import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -40,11 +40,31 @@ export default function CourseDetails() {
   const [loading, setLoading] = React.useState(false);
 
   const user = useAuthStore((state) => state.user);
-  const { 
-    getBalance, 
-    deductBalance, 
-    addTransaction 
-  } = useWalletStore();
+  
+  const walletBalance = user?.wallet_balance || 0;
+  
+  // Manually initialize wallet balance if not set
+  React.useEffect(() => {
+    if (user && (!user.wallet_balance || user.wallet_balance === 0)) {
+      // Fetch initial balance from backend or set a default
+      const fetchInitialBalance = async () => {
+        try {
+          const response = await apiClient.get('/api/user/wallet-balance');
+          const initialBalance = response.data.balance;
+          // walletStore.addBalance(user.id, initialBalance);
+        } catch (error) {
+          console.error('Failed to fetch initial balance', error);
+          // Set a default balance if fetch fails
+          // walletStore.addBalance(user.id, 1000); // Default to 1000
+        }
+      };
+
+      fetchInitialBalance();
+    }
+  }, [user]);
+  
+  console.log('User:', user);
+  console.log('Wallet Balance:', walletBalance);
 
   // Fetch course details
   const { 
@@ -56,9 +76,6 @@ export default function CourseDetails() {
     queryFn: () => courseService.getCourseDetails(courseId!),
     enabled: !!courseId
   });
-
-  // Get user's current balance
-  const balance = getBalance(user?.id || '');
 
   const [showInsufficientFundsModal, setShowInsufficientFundsModal] = React.useState(false);
 
@@ -99,7 +116,7 @@ export default function CourseDetails() {
       return;
     }
 
-    if (balance < ENROLLMENT_FEE) {
+    if (walletBalance < ENROLLMENT_FEE) {
       setShowInsufficientFundsModal(true);
       return;
     }
@@ -115,16 +132,16 @@ export default function CourseDetails() {
 
       if (response.success && response.data) {
         // Deduct enrollment fee
-        deductBalance(user.id, ENROLLMENT_FEE);
+        // walletStore.deductBalance(user.id, ENROLLMENT_FEE);
         
         // Record transaction
-        addTransaction(user.id, {
-          id: response.data.transactionId,
-          type: 'debit',
-          amount: ENROLLMENT_FEE,
-          description: `Course enrollment: ${course.title}`,
-          date: new Date().toISOString()
-        });
+        // walletStore.addTransaction(user.id, {
+        //   id: response.data.transactionId,
+        //   type: 'debit',
+        //   amount: ENROLLMENT_FEE,
+        //   description: `Course enrollment: ${course.title}`,
+        //   date: new Date().toISOString()
+        // });
 
         // Create enrollment object with all necessary data
         const enrollmentData = {
@@ -272,7 +289,7 @@ export default function CourseDetails() {
                           )}
                         </Button>
                         <p className="text-xs text-center text-muted-foreground">
-                          Wallet Balance: {formatCurrency(balance)}
+                          Wallet Balance: {formatCurrency(walletBalance)}
                         </p>
                       </div>
                     </div>
@@ -464,7 +481,7 @@ export default function CourseDetails() {
 
                       </div>
                       <p className="text-xs text-center text-muted-foreground">
-                        Wallet Balance: {formatCurrency(balance)}
+                        Wallet Balance: {formatCurrency(walletBalance)}
                       </p>
                     </div>
                     <Separator />
@@ -494,7 +511,7 @@ export default function CourseDetails() {
           onClose={() => setShowInsufficientFundsModal(false)}
           onFundWallet={handleFundWallet}
           requiredAmount={ENROLLMENT_FEE}
-          currentBalance={balance}
+          currentBalance={walletBalance}
           type="enrollment"
         />
       </div>

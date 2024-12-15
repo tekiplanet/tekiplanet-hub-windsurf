@@ -1,5 +1,7 @@
 import { EnrollmentRequest, EnrollmentResponse } from '@/types';
 import apiClient from '@/lib/axios';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useWalletStore } from '@/store/useWalletStore';
 
 class CourseService {
   async enrollInCourse(data: EnrollmentRequest): Promise<EnrollmentResponse> {
@@ -15,10 +17,19 @@ class CourseService {
     try {
       const courseResponse = await apiClient.get(`/api/courses/${courseId}`);
       const featuresResponse = await apiClient.get(`/api/courses/${courseId}/features`);
+      
+      // Get current user ID from auth store
+      const userId = useAuthStore.getState().user?.id;
+      
+      // Get wallet balance from wallet store
+      const walletBalance = userId 
+        ? useWalletStore.getState().getBalance(userId) 
+        : 0;
 
       return {
         ...courseResponse.data,
-        features: featuresResponse.data.map((feature: any) => feature.feature)
+        features: featuresResponse.data.map((feature: any) => feature.feature),
+        user: { wallet_balance: walletBalance }
       };
     } catch (error) {
       console.error('Failed to fetch course details', error);
