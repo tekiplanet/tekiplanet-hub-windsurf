@@ -9,6 +9,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,3 +54,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // Course Routes
 Route::get('/courses', [CourseController::class, 'index']);
 Route::get('/courses/{id}', [CourseController::class, 'show']);
+
+// Settings Routes
+Route::prefix('settings')->group(function () {
+    Route::get('/', [SettingsController::class, 'index']);
+    Route::put('/', [SettingsController::class, 'update']);
+    Route::get('/{key}', [SettingsController::class, 'getSetting']);
+});

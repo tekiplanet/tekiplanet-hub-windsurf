@@ -30,6 +30,11 @@ interface Course {
   image_url?: string;
 }
 
+interface Settings {
+  currency_symbol: string;
+  default_currency: string;
+}
+
 const fetchCourses = async (): Promise<Course[]> => {
   try {
     const response = await apiClient.get('/api/courses');
@@ -40,19 +45,34 @@ const fetchCourses = async (): Promise<Course[]> => {
   }
 };
 
+const fetchSettings = async (): Promise<Settings> => {
+  try {
+    const response = await apiClient.get('/api/settings');
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch settings", error);
+    return { currency_symbol: '₦', default_currency: 'NGN' }; // Fallback to default
+  }
+};
+
 export default function Academy() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedLevel, setSelectedLevel] = useState<string>("all")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
-  const { data: courses = [], isLoading, error } = useQuery<Course[]>({
+  const settingsQuery = useQuery<Settings>({
+    queryKey: ['settings'],
+    queryFn: fetchSettings,
+  });
+
+  const coursesQuery = useQuery<Course[]>({
     queryKey: ['courses'],
     queryFn: fetchCourses,
     placeholderData: [] // Provide a default empty array
   });
 
-  if (isLoading) {
+  if (coursesQuery.isLoading || settingsQuery.isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         Loading courses...
@@ -60,13 +80,16 @@ export default function Academy() {
     );
   }
 
-  if (error) {
+  if (coursesQuery.error || settingsQuery.error) {
     return (
       <div className="container mx-auto px-4 py-8 text-center text-red-500">
-        Failed to load courses. Please try again later.
+        Failed to load courses or settings. Please try again later.
       </div>
     );
   }
+
+  const courses = coursesQuery.data || [];
+  const settings = settingsQuery.data || { currency_symbol: '₦', default_currency: 'NGN' };
 
   const filteredCourses = courses.filter((course) => {
     const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -174,7 +197,7 @@ export default function Academy() {
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="text-lg font-bold text-primary">
-                      ${Number(course.price).toFixed(2)}
+                      {settings.currency_symbol}{Number(course.price).toFixed(2)}
                     </div>
                     <Button 
                       variant="outline" 
