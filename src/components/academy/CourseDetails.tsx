@@ -199,7 +199,7 @@ export default function CourseDetails() {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <div className="text-sm">
                       <p className="text-muted-foreground">Duration</p>
-                      <p className="font-medium">{course.duration_hours} hours</p>
+                      <p className="font-medium">{course.duration_hours} Months</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -276,6 +276,21 @@ export default function CourseDetails() {
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
+                  <Card>
+                    {/* <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-semibold">What you'll learn</h2>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {course.features && course.features.map((feature, index) => (
+                            <div key={index} className="flex items-center gap-3">
+                              <CheckCircle2 className="h-5 w-5 text-primary" />
+                              <span className="text-sm text-primary">{feature.feature}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent> */}
+                  </Card>
                   <div className="grid gap-4 md:grid-cols-3">
                     <Card>
                       <CardContent className="p-4 flex items-center gap-4">

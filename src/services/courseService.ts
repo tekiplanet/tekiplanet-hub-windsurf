@@ -13,11 +13,16 @@ class CourseService {
 
   async getCourseDetails(courseId: string) {
     try {
-      const response = await apiClient.get(`/api/courses/${courseId}`);
-      return response.data;
+      const courseResponse = await apiClient.get(`/api/courses/${courseId}`);
+      const featuresResponse = await apiClient.get(`/api/courses/${courseId}/features`);
+
+      return {
+        ...courseResponse.data,
+        features: featuresResponse.data.map((feature: any) => feature.feature)
+      };
     } catch (error) {
-      console.error('Failed to fetch course details:', error);
-      throw new Error('Failed to fetch course details');
+      console.error('Failed to fetch course details', error);
+      throw error;
     }
   }
 

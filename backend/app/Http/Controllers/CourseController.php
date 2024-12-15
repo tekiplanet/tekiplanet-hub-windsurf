@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\CourseFeature;
 use Illuminate\Http\Request;
 
 class CourseController extends Controller
@@ -43,5 +44,17 @@ class CourseController extends Controller
     {
         $course = Course::findOrFail($id);
         return response()->json($course);
+    }
+
+    /**
+     * Returns the features of a course.
+     *
+     * @param int $courseId The ID of the course.
+     * @return \Illuminate\Http\JsonResponse A JSON response containing the course features.
+     */
+    public function getCourseFeatures($courseId)
+    {
+        $features = CourseFeature::where('course_id', $courseId)->get();
+        return response()->json($features);
     }
 }

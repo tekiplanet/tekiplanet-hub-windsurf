@@ -53,7 +53,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 // Course Routes
 Route::get('/courses', [CourseController::class, 'index']);
-Route::get('/courses/{id}', [CourseController::class, 'show']);
+Route::get('/courses/{courseId}', [CourseController::class, 'show']);
+Route::get('/courses/{courseId}/features', [CourseController::class, 'getCourseFeatures']);
+Route::get('/courses/{courseId}/features/{featureId}', [CourseController::class, 'getCourseFeature']);
 
 // Settings Routes
 Route::prefix('settings')->group(function () {
