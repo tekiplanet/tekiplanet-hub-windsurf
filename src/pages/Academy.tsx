@@ -208,7 +208,7 @@ export default function Academy() {
                     </div>
                     <Button 
                       size="sm" 
-                      onClick={() => navigate(`/dashboard/academy/course/${course.id}`)}
+                      onClick={() => navigate(`/academy/course/${course.id}`)}
                     >
                       View Course
                       <ChevronRight className="h-4 w-4 ml-1" />

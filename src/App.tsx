@@ -63,7 +63,6 @@ const AppContent = () => {
                   <Route index element={<Dashboard />} />
                   <Route path="*" element={<Dashboard />} />
                   <Route path="payment-confirmation" element={<PaymentConfirmation />} />
-                  <Route path="academy/course/:courseId" element={<CourseDetails />} />
                 </Routes>
               </ProtectedRoute>
             }
@@ -85,6 +84,7 @@ const AppContent = () => {
           <Route path="/services/consulting" element={<ITConsulting />} />
           <Route path="/paystack-callback" element={<PaystackCallback />} />
           <Route path="/academy" element={<Academy />} />
+          <Route path="/academy/course/:courseId" element={<CourseDetails />} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/*" element={
