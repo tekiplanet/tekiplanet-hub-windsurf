@@ -30,6 +30,8 @@ const ITConsulting = React.lazy(() => import('@/pages/ITConsulting'));
 const Settings = React.lazy(() => import('@/pages/Settings'));
 const PaymentConfirmation = React.lazy(() => import('@/pages/PaymentConfirmation'));
 const PaystackCallback = React.lazy(() => import('@/pages/PaystackCallback'));
+const CourseDetails = React.lazy(() => import('@/components/academy/CourseDetails'));
+const Academy = React.lazy(() => import('@/pages/Academy'));
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,7 @@ const AppContent = () => {
                   <Route index element={<Dashboard />} />
                   <Route path="*" element={<Dashboard />} />
                   <Route path="payment-confirmation" element={<PaymentConfirmation />} />
+                  <Route path="academy/course/:courseId" element={<CourseDetails />} />
                 </Routes>
               </ProtectedRoute>
             }
@@ -81,6 +84,7 @@ const AppContent = () => {
           />
           <Route path="/services/consulting" element={<ITConsulting />} />
           <Route path="/paystack-callback" element={<PaystackCallback />} />
+          <Route path="/academy" element={<Academy />} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/*" element={

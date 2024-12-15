@@ -1,4 +1,5 @@
 import { EnrollmentRequest, EnrollmentResponse } from '@/types';
+import apiClient from '@/lib/axios';
 
 class CourseService {
   async enrollInCourse(data: EnrollmentRequest): Promise<EnrollmentResponse> {
@@ -7,6 +8,16 @@ class CourseService {
       return response;
     } catch (error) {
       throw new Error('Failed to process enrollment');
+    }
+  }
+
+  async getCourseDetails(courseId: string) {
+    try {
+      const response = await apiClient.get(`/api/courses/${courseId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch course details:', error);
+      throw new Error('Failed to fetch course details');
     }
   }
 
@@ -29,4 +40,4 @@ class CourseService {
   }
 }
 
-export const courseService = new CourseService(); 
+export const courseService = new CourseService();

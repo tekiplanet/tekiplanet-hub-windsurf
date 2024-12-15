@@ -207,9 +207,8 @@ export default function Academy() {
                       {settings.currency_symbol}{formatPrice(course.price)}
                     </div>
                     <Button 
-                      variant="outline" 
                       size="sm" 
-                      onClick={() => navigate(`/course/${course.id}`)}
+                      onClick={() => navigate(`/dashboard/academy/course/${course.id}`)}
                     >
                       View Course
                       <ChevronRight className="h-4 w-4 ml-1" />

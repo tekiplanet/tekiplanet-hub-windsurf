@@ -18,17 +18,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { InsufficientFundsModal } from "@/components/wallet/InsufficientFundsModal";
 import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
-import { Course, mockCourses } from "@/data/mockCourses";
-
-interface EnrollmentResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    transactionId: string;
-    courseId: string;
-    amount: number;
-  };
-}
+import { useQuery } from "@tanstack/react-query";
 
 const ENROLLMENT_FEE = 5000;
 
@@ -44,13 +34,54 @@ export default function CourseDetails() {
     addTransaction 
   } = useWalletStore();
 
+  // Fetch course details
+  const { 
+    data: course, 
+    isLoading: isCourseLoading, 
+    error: courseError 
+  } = useQuery({
+    queryKey: ['courseDetails', courseId],
+    queryFn: () => courseService.getCourseDetails(courseId!),
+    enabled: !!courseId
+  });
+
   // Get user's current balance
   const balance = getBalance(user?.id || '');
 
-  // Find the correct course based on courseId
-  const course = mockCourses.find(c => c.id === courseId);
-
   const [showInsufficientFundsModal, setShowInsufficientFundsModal] = React.useState(false);
+
+  if (isCourseLoading) {
+    return <div>Loading course details...</div>;
+  }
+
+  if (courseError || !course) {
+    return <div>Failed to load course details</div>;
+  }
+
+  // Ensure default values for optional fields
+  const safeCourse = {
+    id: course.id || '',
+    title: course.title || 'Untitled Course',
+    description: course.description || '',
+    category: course.category || '',
+    level: course.level || '',
+    image_url: course.image_url || '',
+    duration_hours: course.duration_hours || 0,
+    students_count: course.students_count || 0,
+    average_rating: course.average_rating || 0,
+    instructor: course.instructor || '',
+    price: course.price || 0,
+    curriculum: course.curriculum || [],
+    syllabus: course.syllabus || [],
+    features: course.features || [],
+    tutor: course.tutor || {
+      name: 'Unknown Instructor',
+      avatar: '',
+      title: '',
+      rating: 0,
+      students: 0
+    }
+  };
 
   const handleEnroll = async () => {
     if (!user) {
@@ -59,11 +90,6 @@ export default function CourseDetails() {
         description: "Please login to enroll in this course",
         variant: "destructive"
       });
-      return;
-    }
-
-    if (!course) {
-      toast.error("Course not found");
       return;
     }
 
@@ -90,23 +116,23 @@ export default function CourseDetails() {
           id: response.data.transactionId,
           type: 'debit',
           amount: ENROLLMENT_FEE,
-          description: `Course enrollment: ${course.title}`,
+          description: `Course enrollment: ${safeCourse.title}`,
           date: new Date().toISOString()
         });
 
         // Create enrollment object with all necessary data
         const enrollmentData = {
-          courseId: course.id,
+          courseId: safeCourse.id,
           enrollmentDate: new Date().toISOString(),
           transactionId: response.data.transactionId,
           userId: user.id,
           tuitionPaid: false,
-          tuitionFee: course.price,
-          paymentPlan: 'full' as const, // Explicitly type as 'full' | 'installment'
+          tuitionFee: safeCourse.price,
+          paymentPlan: 'full' as const,
           progress: 0,
           lastAccessed: new Date().toISOString(),
-          nextLesson: course.curriculum?.[0]?.title || "Introduction",
-          nextDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
+          nextLesson: safeCourse.curriculum?.[0]?.title || "Introduction",
+          nextDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         };
 
         // Get existing enrollments and add new one
@@ -142,8 +168,8 @@ export default function CourseDetails() {
             <div className="relative aspect-[16/9] w-[calc(100%+2rem)] -mx-4 -mt-4 md:mt-0 md:w-full md:mx-0 md:rounded-lg md:overflow-hidden">
               <div className="rounded-t-3xl overflow-hidden md:rounded-lg">
                 <img 
-                  src={course.image} 
-                  alt={course.title}
+                  src={safeCourse.image_url} 
+                  alt={safeCourse.title}
                   className="object-cover w-full h-full"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -162,21 +188,21 @@ export default function CourseDetails() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant="secondary">
-                    {course.category}
+                    {safeCourse.category}
                   </Badge>
                   <Badge 
                     variant={
-                      course.level === "Beginner" ? "default" :
-                      course.level === "Intermediate" ? "secondary" : 
+                      safeCourse.level === "Beginner" ? "default" :
+                      safeCourse.level === "Intermediate" ? "secondary" : 
                       "destructive"
                     }
                   >
-                    {course.level}
+                    {safeCourse.level}
                   </Badge>
                 </div>
-                <h1 className="text-3xl font-bold mb-2">{course.title}</h1>
+                <h1 className="text-3xl font-bold mb-2">{safeCourse.title}</h1>
                 <p className="text-muted-foreground">
-                  {course.description}
+                  {safeCourse.description}
                 </p>
               </div>
 
@@ -185,28 +211,27 @@ export default function CourseDetails() {
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div className="text-sm">
                     <p className="text-muted-foreground">Duration</p>
-                    <p className="font-medium">{course.duration}</p>
+                    <p className="font-medium">{safeCourse.duration_hours} hours</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <div className="text-sm">
                     <p className="text-muted-foreground">Students</p>
-                    <p className="font-medium">{course.students}</p>
+                    <p className="font-medium">{safeCourse.students_count || 0}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-yellow-500" />
                   <div className="text-sm">
                     <p className="text-muted-foreground">Rating</p>
-                    <p className="font-medium">{course.rating}/5.0</p>
+                    <p className="font-medium">{safeCourse.average_rating || 'N/A'}/5.0</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   <div className="text-sm">
-                    <p className="text-muted-foreground">Level</p>
-                    <p className="font-medium">{course.level}</p>
+                    <p className="text-muted-foreground">Instructor</p>
+                    <p className="font-medium">{safeCourse.instructor}</p>
                   </div>
                 </div>
               </div>
@@ -216,7 +241,7 @@ export default function CourseDetails() {
                 <CardContent className="p-4">
                   <div className="space-y-4">
                     <div>
-                      <h2 className="text-2xl font-bold">{formatCurrency(course.price)}</h2>
+                      <h2 className="text-2xl font-bold">{formatCurrency(safeCourse.price)}</h2>
                       <p className="text-sm text-muted-foreground">Tuition Fee</p>
                     </div>
                     <div className="space-y-2">
@@ -307,7 +332,7 @@ export default function CourseDetails() {
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold">What you'll learn</h2>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {course.features.map((feature, index) => (
+                    {safeCourse.features.map((feature, index) => (
                       <div key={index} className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                         <span className="text-sm">{feature}</span>
@@ -321,7 +346,7 @@ export default function CourseDetails() {
                 <Card>
                   <CardContent className="p-6">
                     <div className="space-y-4">
-                      {course.syllabus.map((item, index) => (
+                      {safeCourse.curriculum.map((item, index) => (
                         <div key={index} className="flex items-start gap-4">
                           <div className={`rounded-full p-2 ${
                             item.completed 
@@ -353,24 +378,24 @@ export default function CourseDetails() {
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
                       <Avatar className="h-16 w-16">
-                        <AvatarImage src={course.tutor.avatar} />
+                        <AvatarImage src={safeCourse.tutor.avatar} />
                         <AvatarFallback>
-                          {course.tutor.name.split(' ').map(n => n[0]).join('')}
+                          {safeCourse.tutor.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="space-y-1">
-                        <h3 className="font-semibold">{course.tutor.name}</h3>
+                        <h3 className="font-semibold">{safeCourse.tutor.name}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {course.tutor.title}
+                          {safeCourse.tutor.title}
                         </p>
                         <div className="flex gap-4 text-sm">
                           <div className="flex items-center gap-1">
                             <Star className="h-4 w-4 text-yellow-400" />
-                            {course.tutor.rating} Rating
+                            {safeCourse.tutor.rating} Rating
                           </div>
                           <div className="flex items-center gap-1">
                             <GraduationCap className="h-4 w-4" />
-                            {course.tutor.students} Students
+                            {safeCourse.tutor.students} Students
                           </div>
                         </div>
                       </div>
@@ -387,7 +412,7 @@ export default function CourseDetails() {
               <CardContent className="p-6">
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-3xl font-bold">{formatCurrency(course.price)}</h2>
+                    <h2 className="text-3xl font-bold">{formatCurrency(safeCourse.price)}</h2>
                     <p className="text-sm text-muted-foreground">Tuition Fee</p>
                   </div>
                   <div className="space-y-2">
@@ -445,4 +470,4 @@ export default function CourseDetails() {
       />
     </div>
   );
-} 
+}
