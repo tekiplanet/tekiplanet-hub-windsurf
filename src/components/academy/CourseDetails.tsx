@@ -321,14 +321,19 @@ export default function CourseDetails() {
                   <div className="space-y-4">
                     <h2 className="text-lg font-semibold">What you'll learn</h2>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {course.features?.map((feature, index) => (
+                      {(course.features?.length ? course.features : [
+                        "Comprehensive understanding of core concepts",
+                        "Practical skills through hands-on projects",
+                        "Industry-relevant techniques and best practices",
+                        "Professional tools and technologies",
+                        "Problem-solving and critical thinking skills",
+                        "Preparation for real-world challenges"
+                      ])?.map((feature, index) => (
                         <div key={index} className="flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                           <span className="text-sm">{feature}</span>
                         </div>
-                      )) || (
-                        <p className="text-muted-foreground">No features available</p>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </TabsContent>

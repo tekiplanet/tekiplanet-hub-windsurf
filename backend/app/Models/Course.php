@@ -53,6 +53,11 @@ class Course extends Model
         return $this->hasMany(Enrollment::class);
     }
 
+    public function features()
+    {
+        return $this->hasMany(CourseFeature::class);
+    }
+
     public function exams()
     {
         return $this->hasMany(CourseExam::class);
