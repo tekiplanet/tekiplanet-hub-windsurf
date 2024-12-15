@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { useNavigate } from "react-router-dom"
 import { 
   BookOpen, Clock, Star, Users, Search, 
-  GraduationCap, Filter, ChevronRight 
+  GraduationCap, Filter, ChevronRight, User 
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
@@ -98,6 +98,13 @@ export default function Academy() {
     const matchesCategory = selectedCategory === "all" || course.category.toLowerCase() === selectedCategory
     return matchesSearch && matchesLevel && matchesCategory
   })
+
+  const formatPrice = (price: number | string) => {
+    return Number(price).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -197,7 +204,7 @@ export default function Academy() {
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="text-lg font-bold text-primary">
-                      {settings.currency_symbol}{Number(course.price).toFixed(2)}
+                      {settings.currency_symbol}{formatPrice(course.price)}
                     </div>
                     <Button 
                       variant="outline" 
