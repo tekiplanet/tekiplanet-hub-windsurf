@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useAuthStore } from '@/store/useAuthStore';
 import { useWalletStore } from '@/store/useWalletStore';
 import { courseService } from '@/services/courseService';
+import { settingsService } from '@/services/settingsService';
 import { InsufficientFundsModal } from "@/components/wallet/InsufficientFundsModal";
 import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -32,8 +33,6 @@ interface EnrollmentResponse {
     amount: number;
   };
 }
-
-const ENROLLMENT_FEE = 5000;
 
 export default function CourseDetails() {
   const { courseId } = useParams();
@@ -66,6 +65,21 @@ export default function CourseDetails() {
   
   console.log('User:', user);
   console.log('Wallet Balance:', walletBalance);
+
+  const [ENROLLMENT_FEE, setENROLLMENT_FEE] = React.useState(1000);
+  const [DEFAULT_CURRENCY, setDEFAULT_CURRENCY] = React.useState('USD');
+
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      const enrollmentFee = await settingsService.getSetting('enrollment_fee');
+      const defaultCurrency = await settingsService.getSetting('default_currency');
+      
+      setENROLLMENT_FEE(enrollmentFee || 1000);
+      setDEFAULT_CURRENCY(defaultCurrency || 'USD');
+    };
+
+    fetchSettings();
+  }, []);
 
   // Fetch course details
   const { 
@@ -241,13 +255,13 @@ export default function CourseDetails() {
                   <CardContent className="p-4">
                     <div className="space-y-4">
                       <div>
-                        <h2 className="text-2xl font-bold">{formatCurrency(course.price)}</h2>
+                        <h2 className="text-2xl font-bold">{formatCurrency(course.price, DEFAULT_CURRENCY)}</h2>
                         <p className="text-sm text-muted-foreground">Tuition Fee</p>
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span>Enrollment Fee:</span>
-                          <span>{formatCurrency(ENROLLMENT_FEE)}</span>
+                          <span>{formatCurrency(ENROLLMENT_FEE, DEFAULT_CURRENCY)}</span>
                         </div>
                         <Button 
                           className="w-full text-white"
@@ -264,7 +278,7 @@ export default function CourseDetails() {
                           )}
                         </Button>
                         <p className="text-xs text-center text-muted-foreground">
-                          Wallet Balance: {formatCurrency(walletBalance)}
+                          Wallet Balance: {formatCurrency(walletBalance, DEFAULT_CURRENCY)}
                         </p>
                       </div>
                     </div>
@@ -436,13 +450,13 @@ export default function CourseDetails() {
                 <CardContent className="p-6">
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-3xl font-bold">{formatCurrency(course.price)}</h2>
+                      <h2 className="text-3xl font-bold">{formatCurrency(course.price, DEFAULT_CURRENCY)}</h2>
                       <p className="text-sm text-muted-foreground">Tuition Fee</p>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Enrollment Fee:</span>
-                        <span>{formatCurrency(ENROLLMENT_FEE)}</span>
+                        <span>{formatCurrency(ENROLLMENT_FEE, DEFAULT_CURRENCY)}</span>
                       </div>
                       <div className="flex items-center gap-4">
                         <Button 
@@ -456,7 +470,7 @@ export default function CourseDetails() {
 
                       </div>
                       <p className="text-xs text-center text-muted-foreground">
-                        Wallet Balance: {formatCurrency(walletBalance)}
+                        Wallet Balance: {formatCurrency(walletBalance, DEFAULT_CURRENCY)}
                       </p>
                     </div>
                     <Separator />

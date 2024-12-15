@@ -21,7 +21,8 @@ class Setting extends Model
         'default_payment_gateway', 'enabled_payment_gateways', 'tax_rate',
         'two_factor_enabled', 'gdpr_compliance',
         'google_analytics_id', 'facebook_pixel_id',
-        'maintenance_mode', 'maintenance_message'
+        'maintenance_mode', 'maintenance_message',
+        'enrollment_fee'
     ];
 
     protected $casts = [
