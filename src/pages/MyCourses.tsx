@@ -764,9 +764,15 @@ export default function MyCourses() {
       <InsufficientFundsModal
         open={showInsufficientFundsModal}
         onOpenChange={(open) => setShowInsufficientFundsModal(open)}
-        requiredAmount={selectedCourse?.total_tuition || 0}
+        requiredAmount={
+          selectedPaymentPlan === 'full' 
+            ? (selectedCourse?.total_tuition || 0) 
+            : (selectedCourse?.installments?.[0]?.amount || 0)
+        }
         currentBalance={balance}
         currencySymbol={currencySymbol}
+        selectedPaymentPlan={selectedPaymentPlan}
+        courseName={selectedCourse?.course_title || ''}
         onConfirmPayment={() => {
           // This could be either full payment or installment payment
           if (selectedPaymentPlan === 'full') {
@@ -789,6 +795,27 @@ export default function MyCourses() {
               selectedInstallment.amount
             )
             .then(response => {
+              console.log('Full server response:', response);
+
+              // Check the structure of the response
+              if (!response) {
+                throw new Error('Empty server response');
+              }
+
+              // Try to find the installment data in different possible response structures
+              const installmentData = 
+                response.installment || 
+                response.data?.installment || 
+                response.data || 
+                response;
+
+              console.log('Parsed installment data:', installmentData);
+
+              // Validate installment data
+              if (!installmentData) {
+                throw new Error('Could not extract installment data from server response');
+              }
+
               // Update local state to reflect installment payment
               const updatedEnrollments = enrolledCourses.map(course => 
                 course.enrollment_id === selectedCourse.enrollment_id
@@ -797,10 +824,10 @@ export default function MyCourses() {
                       installments: course.installments?.map(inst => 
                         inst.id === selectedInstallment.id 
                           ? { 
-                              ...response.installment,
-                              number: inst.number,
-                              paid: response.installment.status === 'paid',
-                              overdue: response.installment.status === 'overdue'
+                              ...inst,
+                              status: installmentData.status || 'paid',
+                              paid: true,
+                              overdue: false
                             } 
                           : inst
                       ),
@@ -821,10 +848,10 @@ export default function MyCourses() {
                       installments: course.installments?.map(inst => 
                         inst.id === selectedInstallment.id 
                           ? { 
-                              ...response.installment,
-                              number: inst.number,
-                              paid: response.installment.status === 'paid',
-                              overdue: response.installment.status === 'overdue'
+                              ...inst,
+                              status: installmentData.status || 'paid',
+                              paid: true,
+                              overdue: false
                             } 
                           : inst
                       ),

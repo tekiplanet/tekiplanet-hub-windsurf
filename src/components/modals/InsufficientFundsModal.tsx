@@ -20,6 +20,8 @@ interface InsufficientFundsModalProps {
   currencySymbol?: string;
   onConfirmPayment?: () => void;
   isProcessingPayment?: boolean;
+  selectedPaymentPlan: string;
+  courseName: string;
 }
 
 const InsufficientFundsModal: React.FC<InsufficientFundsModalProps> = ({
@@ -29,7 +31,9 @@ const InsufficientFundsModal: React.FC<InsufficientFundsModalProps> = ({
   currentBalance,
   currencySymbol = '₦',
   onConfirmPayment,
-  isProcessingPayment = false
+  isProcessingPayment = false,
+  selectedPaymentPlan,
+  courseName
 }) => {
   const navigate = useNavigate();
   const amountNeeded = requiredAmount - currentBalance;
@@ -42,7 +46,9 @@ const InsufficientFundsModal: React.FC<InsufficientFundsModalProps> = ({
           <DialogTitle>Payment Confirmation</DialogTitle>
           <DialogDescription>
             {isBalanceSufficient 
-              ? "Confirm your payment" 
+              ? (selectedPaymentPlan === 'full' 
+                  ? "Confirm your payment" 
+                  : `Confirm your installment payment for ${courseName}`)
               : "Your current wallet balance is insufficient for this transaction."}
           </DialogDescription>
         </DialogHeader>
