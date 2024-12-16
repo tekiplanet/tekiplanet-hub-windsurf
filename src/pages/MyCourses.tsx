@@ -444,6 +444,10 @@ export default function MyCourses() {
   }) => {
     if (!course) return null;
 
+    // Ensure balance is converted to a number
+    const numBalance = Number(balance || 0);
+    const numTotalTuition = Number(course.total_tuition || 0);
+
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[425px] md:max-w-[600px]">
@@ -454,23 +458,21 @@ export default function MyCourses() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-2">
-
             <div className="flex justify-between">
               <span>Total Tuition:</span>
               <span className="font-bold text-primary">
-                {formatCurrency(course.total_tuition)}
+                {formatCurrency(numTotalTuition)}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Current Wallet Balance:</span>
-              <span className={`font-bold ${balance < course.total_tuition ? 'text-destructive' : 'text-primary'}`}>
-                {formatCurrency(balance)}
+              <span className={`font-bold ${numBalance < numTotalTuition ? 'text-destructive' : 'text-primary'}`}>
+                {formatCurrency(numBalance)}
               </span>
             </div>
           </div>
           <DialogFooter className="flex justify-between">
-
-            {balance < course.total_tuition ? (
+            {numBalance < numTotalTuition ? (
               <div className="flex space-x-2">
                 <Button 
                   variant="secondary"
