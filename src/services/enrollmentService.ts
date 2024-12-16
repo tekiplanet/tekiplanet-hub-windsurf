@@ -63,17 +63,14 @@ export const enrollmentService = {
           course: {
             id: enrollment.course.id,
             title: enrollment.course.title,
-            description: enrollment.course.description,
-            category: enrollment.course.category,
-            level: enrollment.course.level,
-            instructor: enrollment.course.instructor,
-            image_url: enrollment.course.image_url,
-            duration_hours: enrollment.course.duration_hours,
+            image: enrollment.course.image_url,
           },
           progress: parseFloat(enrollment.progress) * 100, // Convert to percentage
           lastAccessed: enrollment.updated_at,
+          nextLesson: 'Introduction to the Course', // Placeholder
+          nextDeadline: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), // 7 days from now
           paymentPlan: 'full', // Default to full payment
-          installments: [] // You might want to fetch actual installments later
+          installments: [] // Placeholder for future installment logic
         };
       });
 

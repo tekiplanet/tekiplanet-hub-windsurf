@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,11 +33,8 @@ import { InsufficientFundsModal } from "@/components/wallet/InsufficientFundsMod
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { enrollmentService } from '@/services/enrollmentService';
-import Dashboard from '@/pages/Dashboard';
 import { Loader2 } from 'lucide-react';
-import { useEffect } from 'react';
 
 interface EnrolledCourse {
   courseId: string;
@@ -131,7 +128,6 @@ export default function MyCourses() {
     deductBalance, 
     addTransaction 
   } = useWalletStore();
-  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -146,41 +142,29 @@ export default function MyCourses() {
   const balance = getBalance(user?.id || '');
 
   // Get enrolled courses with details
-  const { data: enrolledCourses = [], isLoading, error } = useQuery({
-    queryKey: ['enrolledCourses', user?.id],
-    queryFn: () => {
-      console.log('Fetching enrolled courses in MyCourses component');
-      return enrollmentService.getUserEnrolledCourses();
-    },
-    enabled: !!user?.id,
-    initialData: []
-  });
+  const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('Enrolled Courses in MyCourses:', enrolledCourses);
-    console.log('Is Loading:', isLoading);
-    console.log('Error:', error);
-  }, [enrolledCourses, isLoading, error]);
+    const fetchEnrolledCourses = async () => {
+      try {
+        setIsLoading(true);
+        const courses = await enrollmentService.getUserEnrolledCourses();
+        setEnrolledCourses(courses);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch enrolled courses:', err);
+        setError('Failed to load courses');
+        setIsLoading(false);
+        toast.error('Unable to load your courses');
+      }
+    };
 
-  if (isLoading) {
-    return (
-      <Dashboard>
-        <div className="flex justify-center items-center h-full">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </Dashboard>
-    );
-  }
-
-  if (error) {
-    toast.error('Failed to load enrolled courses');
-    return (
-      <div className="flex justify-center items-center h-full text-red-500">
-        <AlertCircle className="h-8 w-8 mr-2" /> 
-        Unable to load courses
-      </div>
-    );
-  }
+    if (user?.id) {
+      fetchEnrolledCourses();
+    }
+  }, [user?.id]);
 
   // Filter and sort courses
   const filteredCourses = enrolledCourses
@@ -273,8 +257,22 @@ export default function MyCourses() {
           : course
       );
 
-      // Update query cache
-      queryClient.setQueryData(['enrolledCourses', user?.id], updatedEnrollments);
+      // Update localStorage
+      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+        course.courseId === processingCourse.courseId && course.userId === user.id
+          ? { 
+              ...course, 
+              paymentPlan: 'full' as const,
+              tuitionPaid: true,
+              dueDate: dueDate,
+              amount: fullAmount
+            }
+          : course
+      );
+      
+      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+      setEnrolledCourses(updatedEnrollments);
       
       toast.success("Full tuition payment processed successfully!");
     } else {
@@ -308,8 +306,39 @@ export default function MyCourses() {
           : course
       );
 
-      // Update query cache
-      queryClient.setQueryData(['enrolledCourses', user?.id], updatedEnrollments);
+      // Update localStorage
+      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+        course.courseId === processingCourse.courseId && course.userId === user.id
+          ? { 
+              ...course, 
+              paymentPlan: 'installment' as const,
+              tuitionFee: fullAmount, // Store full amount
+              tuitionPaid: false,
+              installments: [
+                {
+                  number: 1 as const,
+                  amount: installmentAmount,
+                  dueDate: new Date().toISOString(),
+                  paid: false,
+                  paidDate: null,
+                  overdue: false
+                },
+                {
+                  number: 2 as const,
+                  amount: installmentAmount,
+                  dueDate: dueDate,
+                  paid: false,
+                  paidDate: null,
+                  overdue: false
+                }
+              ]
+            }
+          : course
+      );
+      
+      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+      setEnrolledCourses(updatedEnrollments);
       
       toast.success("Installment plan set up successfully!");
     }
@@ -368,8 +397,19 @@ export default function MyCourses() {
         : course
     );
 
-    // Update query cache
-    queryClient.setQueryData(['enrolledCourses', user?.id], updatedEnrollments);
+    // Update localStorage
+    const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+    const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+      course.courseId === enrollment.courseId && course.userId === user.id
+        ? { 
+            ...course, 
+            installments: updatedInstallments,
+            tuitionPaid: allPaid
+          }
+        : course
+    );
+    localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+    setEnrolledCourses(updatedEnrollments);
 
     toast.success(`Installment ${installmentNumber} paid successfully!`);
   };
@@ -427,134 +467,202 @@ export default function MyCourses() {
       </div>
 
       {/* Course Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredCourses.map((enrollment) => (
-          <Card key={enrollment.courseId} className="group hover:shadow-lg transition-shadow">
-            <CardContent className="p-0">
-              {/* Course Image */}
-              <div className="relative aspect-video">
-                <img 
-                  src={enrollment.course?.image}
-                  alt={enrollment.course?.title}
-                  className="object-cover w-full h-full rounded-t-lg"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <Badge 
-                  className="absolute top-4 right-4"
-                  variant={enrollment.tuitionPaid ? "default" : "destructive"}
-                >
-                  {enrollment.tuitionPaid ? "Paid" : "Payment Required"}
-                </Badge>
-              </div>
-
-              {/* Course Info */}
-              <div className="p-6 space-y-4">
-                <div>
-                  <h3 className="font-semibold text-lg mb-1 line-clamp-1">
-                    {enrollment.course?.title}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>Last accessed {new Date(enrollment.lastAccessed!).toLocaleDateString()}</span>
-                  </div>
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((_, index) => (
+            <Card key={index} className="group hover:shadow-lg transition-shadow">
+              <CardContent className="p-0">
+                <div className="relative aspect-video">
+                  <div className="absolute inset-0 bg-gray-200 animate-pulse" />
                 </div>
-
-                {/* Progress Section */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span className="text-primary">{enrollment.progress}%</span>
-                  </div>
-                  <Progress value={enrollment.progress} className="h-2" />
-                </div>
-
-                {/* Next Up Section */}
-                <div className="space-y-2 pt-2 border-t">
-                  <div className="flex items-start gap-2 text-sm">
-                    <BookOpen className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                    <div>
-                      <p className="text-muted-foreground">Next Lesson</p>
-                      <p className="font-medium line-clamp-1">{enrollment.nextLesson}</p>
+                <div className="p-6 space-y-4">
+                  <div className="h-4 w-1/2 bg-gray-200 animate-pulse" />
+                  <div className="h-4 w-1/3 bg-gray-200 animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="h-4 w-1/2 bg-gray-200 animate-pulse" />
+                      <span className="h-4 w-1/3 bg-gray-200 animate-pulse" />
                     </div>
+                    <div className="h-2 bg-gray-200 animate-pulse" />
                   </div>
-                  <div className="flex items-start gap-2 text-sm">
-                    <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                    <div>
-                      <p className="text-muted-foreground">Next Deadline</p>
-                      <p className="font-medium">
-                        {new Date(enrollment.nextDeadline!).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Section - Add this before Action Buttons */}
-                {!enrollment.tuitionPaid && (
-                  <div className="space-y-3 pt-2 border-t">
-                    <div className="flex justify-between items-center">
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex items-start gap-2 text-sm">
+                      <div className="h-4 w-4 bg-gray-200 animate-pulse" />
                       <div>
-                        <p className="text-sm text-muted-foreground">Tuition Fee</p>
-                        <p className="text-lg font-bold">{formatCurrency(enrollment.tuitionFee)}</p>
+                        <p className="h-4 w-1/2 bg-gray-200 animate-pulse" />
+                        <p className="h-4 w-1/3 bg-gray-200 animate-pulse" />
                       </div>
-                      <Badge variant="destructive">Payment Required</Badge>
                     </div>
-                    
-                    {enrollment.paymentPlan === 'installment' ? (
-                      <div className="space-y-3">
-                        {enrollment.installments?.map((installment) => (
-                          <div key={installment.number} className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="text-sm">Installment {installment.number}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Due: {new Date(installment.dueDate).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <Badge 
-                                variant={
-                                  installment.paid ? "default" : 
-                                  installment.overdue ? "destructive" : 
-                                  "secondary"
-                                }
-                              >
-                                {installment.paid ? "Paid" : installment.overdue ? "Overdue" : "Pending"}
-                              </Badge>
-                            </div>
-                            {!installment.paid && (
-                              <Button 
-                                className="w-full text-white"
-                                onClick={() => handleInstallmentPayment(enrollment, installment.number)}
-                              >
-                                Pay {formatCurrency(installment.amount)}
-                              </Button>
-                            )}
-                          </div>
-                        ))}
+                    <div className="flex items-start gap-2 text-sm">
+                      <div className="h-4 w-4 bg-gray-200 animate-pulse" />
+                      <div>
+                        <p className="h-4 w-1/2 bg-gray-200 animate-pulse" />
+                        <p className="h-4 w-1/3 bg-gray-200 animate-pulse" />
                       </div>
-                    ) : (
-                      <Button 
-                        className="w-full text-white"
-                        onClick={() => handlePayment(enrollment)}
-                      >
-                        Pay Tuition Fee
-                      </Button>
-                    )}
+                    </div>
                   </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button 
-                    className="flex-1 text-white"
-                    onClick={() => navigate(`/dashboard/academy/${enrollment.courseId}/manage`)}>
-                    <><GraduationCap className="mr-2 h-4 w-4" /> Manage Course</>
-                  </Button>
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button 
+                      className="flex-1 text-white"
+                      disabled
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="max-w-md mx-auto space-y-4">
+              <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-semibold">{error}</h3>
+              <Button 
+                onClick={() => navigate('/dashboard/academy')}
+                className="text-white"
+              >
+                Browse Courses
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredCourses.map((enrollment) => (
+            <Card key={enrollment.courseId} className="group hover:shadow-lg transition-shadow">
+              <CardContent className="p-0">
+                {/* Course Image */}
+                <div className="relative aspect-video">
+                  <img 
+                    src={enrollment.course?.image}
+                    alt={enrollment.course?.title}
+                    className="object-cover w-full h-full rounded-t-lg"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <Badge 
+                    className="absolute top-4 right-4"
+                    variant={enrollment.tuitionPaid ? "default" : "destructive"}
+                  >
+                    {enrollment.tuitionPaid ? "Paid" : "Payment Required"}
+                  </Badge>
+                </div>
+
+                {/* Course Info */}
+                <div className="p-6 space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1 line-clamp-1">
+                      {enrollment.course?.title}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>Last accessed {new Date(enrollment.lastAccessed!).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress Section */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Progress</span>
+                      <span className="text-primary">{enrollment.progress}%</span>
+                    </div>
+                    <Progress value={enrollment.progress} className="h-2" />
+                  </div>
+
+                  {/* Next Up Section */}
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex items-start gap-2 text-sm">
+                      <BookOpen className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                      <div>
+                        <p className="text-muted-foreground">Next Lesson</p>
+                        <p className="font-medium line-clamp-1">{enrollment.nextLesson}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm">
+                      <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                      <div>
+                        <p className="text-muted-foreground">Next Deadline</p>
+                        <p className="font-medium">
+                          {new Date(enrollment.nextDeadline!).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Section - Add this before Action Buttons */}
+                  {!enrollment.tuitionPaid && (
+                    <div className="space-y-3 pt-2 border-t">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Tuition Fee</p>
+                          <p className="text-lg font-bold">{formatCurrency(enrollment.tuitionFee)}</p>
+                        </div>
+                        <Badge variant="destructive">Payment Required</Badge>
+                      </div>
+                      
+                      {enrollment.paymentPlan === 'installment' ? (
+                        <div className="space-y-3">
+                          {enrollment.installments?.map((installment) => (
+                            <div key={installment.number} className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="text-sm">Installment {installment.number}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Due: {new Date(installment.dueDate).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <Badge 
+                                  variant={
+                                    installment.paid ? "default" : 
+                                    installment.overdue ? "destructive" : 
+                                    "secondary"
+                                  }
+                                >
+                                  {installment.paid ? "Paid" : installment.overdue ? "Overdue" : "Pending"}
+                                </Badge>
+                              </div>
+                              {!installment.paid && (
+                                <Button 
+                                  className="w-full text-white"
+                                  onClick={() => handleInstallmentPayment(enrollment, installment.number)}
+                                >
+                                  Pay {formatCurrency(installment.amount)}
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <Button 
+                          className="w-full text-white"
+                          onClick={() => handlePayment(enrollment)}
+                        >
+                          Pay Tuition Fee
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button 
+                      className="flex-1 text-white"
+                      onClick={() => navigate(`/dashboard/academy/${enrollment.courseId}/manage`)}
+                    >
+                      <>
+                        Manage Course
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Empty State */}
       {filteredCourses.length === 0 && (
@@ -597,4 +705,4 @@ export default function MyCourses() {
       />
     </div>
   );
-}
+} 
