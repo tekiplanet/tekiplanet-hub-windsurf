@@ -662,37 +662,49 @@ export default function MyCourses() {
                       
                       {enrollment.installments && enrollment.installments.length > 0 ? (
                         <div className="space-y-3">
-                          {enrollment.installments?.map((installment, index) => (
-                            <div key={installment.id} className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="text-sm">Installment {index + 1}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Due: {new Date(installment.due_date).toLocaleDateString()}
-                                  </p>
+                          {enrollment.installments?.map((installment, index) => {
+                            // Check if previous installments are paid
+                            const previousInstallmentsPaid = 
+                              enrollment.installments?.slice(0, index).every(
+                                inst => inst.status === 'paid'
+                              ) ?? true;
+
+                            return (
+                              <div key={installment.id} className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <p className="text-sm">Installment {index + 1}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Due: {new Date(installment.due_date).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <Badge 
+                                    variant={
+                                      installment.status === 'paid' ? "default" : 
+                                      (new Date(installment.due_date) < new Date() && installment.status !== 'paid') ? "destructive" : 
+                                      "secondary"
+                                    }
+                                  >
+                                    {installment.status === 'paid' ? "Paid" : 
+                                     (new Date(installment.due_date) < new Date() && installment.status !== 'paid') ? "Overdue" : 
+                                     "Pending"}
+                                  </Badge>
                                 </div>
-                                <Badge 
-                                  variant={
-                                    installment.status === 'paid' ? "default" : 
-                                    (new Date(installment.due_date) < new Date() && installment.status !== 'paid') ? "destructive" : 
-                                    "secondary"
-                                  }
-                                >
-                                  {installment.status === 'paid' ? "Paid" : 
-                                   (new Date(installment.due_date) < new Date() && installment.status !== 'paid') ? "Overdue" : 
-                                   "Pending"}
-                                </Badge>
-                              </div>
-                              {installment.status !== 'paid' && (
                                 <Button 
                                   className="w-full text-white"
                                   onClick={() => handleInstallmentPayment(enrollment, installment.id)}
+                                  disabled={
+                                    installment.status === 'paid' || 
+                                    !previousInstallmentsPaid
+                                  }
                                 >
-                                  Pay {formatCurrency(installment.amount)}
+                                  {installment.status === 'paid' 
+                                    ? 'Paid' 
+                                    : `Pay ${formatCurrency(installment.amount)}`}
                                 </Button>
-                              )}
-                            </div>
-                          ))}
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <Button 
@@ -816,6 +828,12 @@ export default function MyCourses() {
                 throw new Error('Could not extract installment data from server response');
               }
 
+              // Determine if all installments are now paid
+              const allInstallmentsPaid = selectedCourse.installments?.every(
+                (inst, index) => 
+                  inst.id === selectedInstallment.id ? true : inst.status === 'paid'
+              ) ?? false;
+
               // Update local state to reflect installment payment
               const updatedEnrollments = enrolledCourses.map(course => 
                 course.enrollment_id === selectedCourse.enrollment_id
@@ -825,16 +843,14 @@ export default function MyCourses() {
                         inst.id === selectedInstallment.id 
                           ? { 
                               ...inst,
-                              status: installmentData.status || 'paid',
+                              status: 'paid',
                               paid: true,
                               overdue: false
                             } 
                           : inst
                       ),
-                      // Update payment status if all installments are paid
-                      payment_status: course.installments?.every(inst => 
-                        inst.id === selectedInstallment.id || inst.status === 'paid'
-                      ) ? 'fully_paid' : 'pending_installments'
+                      // Update payment status to fully_paid if all installments are paid
+                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'pending_installments'
                     }
                   : course
               );
@@ -849,16 +865,14 @@ export default function MyCourses() {
                         inst.id === selectedInstallment.id 
                           ? { 
                               ...inst,
-                              status: installmentData.status || 'paid',
+                              status: 'paid',
                               paid: true,
                               overdue: false
                             } 
                           : inst
                       ),
-                      // Update payment status if all installments are paid
-                      payment_status: course.installments?.every(inst => 
-                        inst.id === selectedInstallment.id || inst.status === 'paid'
-                      ) ? 'fully_paid' : 'pending_installments'
+                      // Update payment status to fully_paid if all installments are paid
+                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'pending_installments'
                     }
                   : course
               );
