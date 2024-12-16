@@ -41,7 +41,11 @@ export const enrollmentService = {
   async enrollInCourse(courseId: string) {
     try {
       // First, check if already enrolled
-      const existingEnrollments = await this.getUserEnrollments();
+      const enrollmentsResponse = await this.getUserEnrollments();
+      
+      // Check if there are existing enrollments
+      const existingEnrollments = enrollmentsResponse.enrollments || [];
+      
       const isAlreadyEnrolled = existingEnrollments.some(
         enrollment => enrollment.course_id === courseId
       );
@@ -59,26 +63,20 @@ export const enrollmentService = {
       
       return {
         success: true,
-        message: 'Successfully enrolled in the course',
-        data: {
-          transactionId: response.data.enrollment_id,
-          courseId: courseId,
-          amount: response.data.enrollment_fee || 1000
-        }
+        message: 'Course enrollment successful',
+        data: response.data
       };
     } catch (error) {
+      console.error('Enrollment error:', error);
+      
       if (isAxiosError(error)) {
-        // Check for specific error codes or messages
-        if (error.response?.status === 409) {
-          return {
-            success: false,
-            message: 'You are already enrolled in this course',
-            data: null
-          };
-        }
-        
-        throw new Error(error.response?.data.message || 'Failed to enroll in course');
+        return {
+          success: false,
+          message: error.response?.data?.message || 'Enrollment failed',
+          data: null
+        };
       }
+      
       throw error;
     }
   },
