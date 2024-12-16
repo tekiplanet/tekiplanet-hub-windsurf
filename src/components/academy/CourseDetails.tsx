@@ -221,38 +221,19 @@ export default function CourseDetails() {
   }
 
   const handleConfirmEnrollment = async () => {
-    if (!course) return;
-
-    setLoading(true);
     try {
-      // Attempt to enroll in the course
+      setLoading(true);
       const response = await enrollmentService.enrollInCourse(course.id);
       
-      // Update wallet balance in local state
-      const updatedBalance = walletBalance - ENROLLMENT_FEE;
-      useAuthStore.getState().updateUser({ wallet_balance: updatedBalance });
-
-      // Show success toast
-      toast.success('Successfully enrolled in the course!', {
-        description: `You've been enrolled in ${course.title}`
-      });
-
-      // Navigate to My Courses
-      navigate('/my-courses');
-    } catch (error) {
-      // Handle enrollment errors
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Failed to enroll in the course';
-      
-      toast.error('Enrollment Failed', {
-        description: errorMessage
-      });
-
-      // If insufficient funds, show insufficient funds modal
-      if (errorMessage.toLowerCase().includes('insufficient')) {
-        setShowInsufficientFundsModal(true);
+      if (response.success) {
+        toast.success('Successfully enrolled in the course!');
+        navigate('/dashboard/academy/my-courses');
+      } else {
+        toast.error(response.message || 'Failed to enroll in the course');
       }
+    } catch (error) {
+      console.error('Enrollment error:', error);
+      toast.error('An unexpected error occurred during enrollment');
     } finally {
       setLoading(false);
     }
@@ -518,7 +499,7 @@ export default function CourseDetails() {
                         <Button 
                           size="lg" 
                           className="flex-1"
-                          onClick={handleEnroll}
+                          onClick={() => setShowConfirmEnrollmentModal(true)}
                           disabled={loading}
                         >
                           {loading ? 'Enrolling...' : 'Enroll Now'}
@@ -551,6 +532,31 @@ export default function CourseDetails() {
           </div>
         </div>
 
+        {showConfirmEnrollmentModal && (
+          <ConfirmationModal
+            open={showConfirmEnrollmentModal}
+            onClose={() => setShowConfirmEnrollmentModal(false)}
+            onConfirm={handleConfirmEnrollment}
+            title="Confirm Enrollment"
+            description={`Are you sure you want to enroll in ${course.title}? An enrollment fee of ${formatCurrency(ENROLLMENT_FEE, DEFAULT_CURRENCY)} will be deducted from your wallet.`}
+          >
+            <ConfirmationModal.Footer>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowConfirmEnrollmentModal(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmEnrollment} 
+                disabled={loading}
+              >
+                {loading ? 'Enrolling...' : 'Confirm Enrollment'}
+              </Button>
+            </ConfirmationModal.Footer>
+          </ConfirmationModal>
+        )}
         <InsufficientFundsModal
           open={showInsufficientFundsModal}
           onClose={() => setShowInsufficientFundsModal(false)}
@@ -558,13 +564,6 @@ export default function CourseDetails() {
           requiredAmount={ENROLLMENT_FEE}
           currentBalance={walletBalance}
           type="enrollment"
-        />
-        <ConfirmationModal
-          open={showConfirmEnrollmentModal}
-          onClose={() => setShowConfirmEnrollmentModal(false)}
-          onConfirm={handleConfirmEnrollment}
-          title="Confirm Enrollment"
-          description={`Are you sure you want to enroll in ${course.title}?`}
         />
       </div>
     </Dashboard>
