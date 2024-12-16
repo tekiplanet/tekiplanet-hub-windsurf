@@ -234,6 +234,14 @@ export default function MyCourses() {
         return new Date(b.enrollment_status).getTime() - new Date(a.enrollment_status).getTime();
       }
       if (sortBy === "progress") {
+        console.log('Sorting progress:', {
+          'a.course_title': a.course_title, 
+          'a.progress': a.progress, 
+          'a.paid_amount': a.paid_amount,
+          'b.course_title': b.course_title, 
+          'b.progress': b.progress, 
+          'b.paid_amount': b.paid_amount
+        });
         return (b.progress ?? 0) - (a.progress ?? 0);
       }
       return 0;
