@@ -823,6 +823,84 @@ class EnrollmentController extends Controller
         }
     }
 
+    public function getCourseDetailsFromEnrollment($enrollmentId)
+    {
+        try {
+            $user = Auth::user();
+
+            // Log authentication details
+            Log::info('Fetching course details for enrollment', [
+                'user_id' => $user->id,
+                'enrollment_id' => $enrollmentId
+            ]);
+
+            // Check if the enrollment exists and belongs to the user
+            $enrollment = Enrollment::where('id', $enrollmentId)
+                ->where('user_id', $user->id)
+                ->first();
+
+            // If no enrollment found, log additional details
+            if (!$enrollment) {
+                Log::warning('No enrollment found', [
+                    'user_id' => $user->id,
+                    'enrollment_id' => $enrollmentId,
+                    'all_user_enrollments' => Enrollment::where('user_id', $user->id)->pluck('id')->toArray()
+                ]);
+
+                return response()->json([
+                    'error' => 'Enrollment not found',
+                    'message' => 'No enrollment found for the given ID'
+                ], 404);
+            }
+
+            // Find the enrollment with all related data
+            $enrollment = Enrollment::where('id', $enrollmentId)
+                ->where('user_id', $user->id)
+                ->with([
+                    'course', 
+                    'course.modules', 
+                    'course.lessons', 
+                    'course.exams', 
+                    'course.schedules', 
+                    'course.notices', 
+                    'course.features', 
+                    'course.instructor', 
+                    'installments'
+                ])
+                ->firstOrFail();
+
+            // Prepare detailed course information
+            return response()->json([
+                'course' => $enrollment->course,
+                'modules' => $enrollment->course->modules ?? [],
+                'lessons' => $enrollment->course->lessons ?? [],
+                'exams' => $enrollment->course->exams ?? [],
+                'schedules' => $enrollment->course->schedules ?? [],
+                'notices' => $enrollment->course->notices ?? [],
+                'features' => $enrollment->course->features ?? [],
+                'instructor' => $enrollment->course->instructor ?? null,
+                'enrollment' => [
+                    'id' => $enrollment->id,
+                    'status' => $enrollment->status,
+                    'progress' => $enrollment->progress,
+                    'enrolled_at' => $enrollment->enrolled_at,
+                ],
+                'installments' => $enrollment->installments ?? []
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching course details from enrollment', [
+                'enrollment_id' => $enrollmentId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Unable to fetch course details',
+                'message' => $e->getMessage()
+            ], 404);
+        }
+    }
+
     // Helper method to calculate overall payment status
     private function calculateOverallPaymentStatus($installments)
     {

@@ -85,12 +85,24 @@ export const enrollmentService = {
 
   async getUserEnrollments() {
     try {
-      const response = await apiClient.get('/enrollments');
-      return response.data.enrollments;
-    } catch (error) {
-      if (isAxiosError(error)) {
-        throw new Error(error.response?.data.message || 'Failed to fetch enrollments');
+      const response = await apiClient.get('/courses/enrolled');
+      
+      console.log('Full user enrollments response:', JSON.stringify(response.data, null, 2));
+      
+      // Add more robust error checking
+      if (!response.data || !response.data.enrollments) {
+        console.warn('No enrollments found in response');
+        return [];
       }
+
+      console.log('Parsed enrollments:', JSON.stringify(response.data.enrollments, null, 2));
+      
+      return {
+        success: true,
+        enrollments: response.data.enrollments
+      };
+    } catch (error) {
+      console.error('Error fetching user enrollments:', error);
       throw error;
     }
   },
@@ -166,22 +178,9 @@ export const enrollmentService = {
   async getCourseDetails(courseId: string) {
     try {
       const response = await apiClient.get(`/courses/${courseId}/details`);
-      
-      // Detailed course information with related models
-      return {
-        course: response.data.course,
-        modules: response.data.modules || [],
-        lessons: response.data.lessons || [],
-        exams: response.data.exams || [],
-        schedules: response.data.schedules || [],
-        notices: response.data.notices || [],
-        features: response.data.features || [],
-        instructor: response.data.instructor || null,
-        enrollment: response.data.enrollment || null,
-        installments: response.data.installments || []
-      };
+      return response.data;
     } catch (error) {
-      console.error('Failed to fetch course details:', error);
+      console.error('Error fetching course details:', error);
       throw error;
     }
   },
@@ -435,3 +434,5 @@ export const enrollmentService = {
     }
   },
 };
+
+export default enrollmentService;

@@ -1,4 +1,4 @@
-import apiClient, { isAxiosError } from '@/lib/axios';
+import { apiClient } from '@/lib/axios';
 
 export interface CourseDetails {
   course: any;
@@ -14,33 +14,26 @@ export interface CourseDetails {
 }
 
 export const courseManagementService = {
-  async getCourseDetails(courseId: string): Promise<CourseDetails> {
+  async getCourseDetails(courseId: string) {
     try {
-      const response = await apiClient.get(`/courses/${courseId}/details`);
+      console.log(`Attempting to fetch course details for course ID: ${courseId}`);
+      const response = await apiClient.get(`/courses/${courseId}`);
       
-      // Detailed course information with related models
-      return {
-        course: response.data.course,
-        modules: response.data.modules || [],
-        lessons: response.data.lessons || [],
-        exams: response.data.exams || [],
-        schedules: response.data.schedules || [],
-        notices: response.data.notices || [],
-        features: response.data.features || [],
-        instructor: response.data.instructor || null,
-        enrollment: response.data.enrollment || null,
-        installments: response.data.installments || []
-      };
-    } catch (error) {
-      console.error('Failed to fetch course details:', error);
+      console.log('Full course details response:', JSON.stringify(response.data, null, 2));
       
-      if (isAxiosError(error)) {
-        throw new Error(error.response?.data.message || 'Failed to fetch course details');
+      if (!response.data.course) {
+        console.warn('No course details found in response');
+        throw new Error('Course details not found');
       }
-      
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching course details:', error);
       throw error;
     }
-  }
+  },
+
+  // Add other course management related methods here
 };
 
 export default courseManagementService;

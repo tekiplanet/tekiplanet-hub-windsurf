@@ -57,7 +57,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('enrollments')->group(function () {
         Route::post('/enroll', [EnrollmentController::class, 'enroll']);
         Route::get('/', [EnrollmentController::class, 'getUserEnrollments']);
-        Route::get('/courses', [EnrollmentController::class, 'getUserEnrolledCourses']);
         Route::post('/full-payment', [EnrollmentController::class, 'processFullTuitionPayment']);
         Route::post('/full-tuition-payment', [EnrollmentController::class, 'processFullTuitionPayment']);
         Route::post('/full-payment', [EnrollmentController::class, 'processFullTuitionPayment']);
@@ -65,11 +64,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/specific-installment-payment', [EnrollmentController::class, 'processSpecificInstallmentPayment']);
         Route::post('/installment-plan', [EnrollmentController::class, 'processInstallmentPlan']);
         Route::post('/pay-installment', [EnrollmentController::class, 'payInstallment']);
+        Route::get('/{enrollmentId}/course-details', [EnrollmentController::class, 'getCourseDetailsFromEnrollment']);
     });
-    Route::get('/courses/enrolled', [EnrollmentController::class, 'getUserEnrolledCourses']);
 });
 
 // Course Routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('courses')->group(function () {
+        Route::get('/enrolled', [EnrollmentController::class, 'getUserEnrolledCourses']);
+        Route::get('/{courseId}/details', [CourseController::class, 'getCourseDetails']);
+    });
+});
+
 Route::get('/courses', [CourseController::class, 'index']);
 Route::get('/courses/{courseId}', [CourseController::class, 'show']);
 Route::get('/courses/{courseId}/features', [CourseController::class, 'getCourseFeatures']);
