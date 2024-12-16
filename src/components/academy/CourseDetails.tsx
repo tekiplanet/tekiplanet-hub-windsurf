@@ -480,7 +480,11 @@ export default function CourseDetails() {
                 </TabsContent>
 
                 <TabsContent value="instructor">
-                  {renderInstructor()}
+                  <Card>
+                    <CardContent className="p-6">
+                      {renderInstructor()}
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             </div>
