@@ -121,6 +121,7 @@ export const enrollmentService = {
             image: enrollment.course_image,
             price: enrollment.total_tuition || 0
           },
+          enrolled_at: enrollment.enrolled_at,
           progress: enrollment.progress ?? 0,
           lastAccessed: new Date().toISOString(),
           nextLesson: 'Introduction to the Course', // Placeholder

@@ -43,6 +43,7 @@ interface EnrolledCourse {
   course_title: string;
   course_image: string;
   enrollment_status: string;
+  enrolled_at: string;
   payment_status: 'not_started' | 'partially_paid' | 'fully_paid' | 'overdue' | 'pending_installments';
   total_tuition: number;
   paid_amount: number;
@@ -184,7 +185,15 @@ export default function MyCourses() {
     })
     .sort((a, b) => {
       if (sortBy === "recent") {
-        return new Date(b.enrollment_status).getTime() - new Date(a.enrollment_status).getTime();
+        console.log('Sorting recent enrollments:', 
+          enrolledCourses.map(e => ({
+            course: e.course_title, 
+            enrolled_at: e.enrolled_at, 
+            parsedDate: e.enrolled_at ? new Date(e.enrolled_at) : null
+          }))
+        );
+        return (b.enrolled_at ? new Date(b.enrolled_at).getTime() : 0) - 
+               (a.enrolled_at ? new Date(a.enrolled_at).getTime() : 0);
       }
       if (sortBy === "progress") {
         console.log('Sorting progress:', {
@@ -511,7 +520,7 @@ export default function MyCourses() {
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="recent">Recently Accessed</SelectItem>
+            <SelectItem value="recent">Recently Enrolled</SelectItem>
             <SelectItem value="progress">Progress</SelectItem>
           </SelectContent>
         </Select>
@@ -614,7 +623,21 @@ export default function MyCourses() {
                     </h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      <span>Last accessed {new Date(enrollment.enrollment_status).toLocaleDateString()}</span>
+                      <span>
+                        {(() => {
+                          const enrolledDate = enrollment.enrolled_at 
+                            ? new Date(enrollment.enrolled_at.replace(' ', 'T'))
+                            : null;
+                          
+                          return enrolledDate 
+                            ? `Enrolled on ${enrolledDate.toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}` 
+                            : 'Not yet enrolled';
+                        })()}
+                      </span>
                     </div>
                   </div>
 
@@ -842,136 +865,14 @@ export default function MyCourses() {
                   : course
               );
 
-              // Update localStorage
-              const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-              const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-                course.enrollment_id === selectedCourse.enrollment_id
-                  ? { 
-                      ...course, 
-                      installments: course.installments?.map(inst => 
-                        inst.id === selectedInstallment.id 
-                          ? { 
-                              ...inst,
-                              status: 'paid',
-                              paid_at: new Date().toISOString()
-                            } 
-                          : inst
-                      ),
-                      // Update payment status to fully_paid if all installments are paid
-                      payment_status: course.installments?.every(inst => 
-                        inst.id === selectedInstallment.id || inst.status === 'paid'
-                      ) 
-                        ? 'fully_paid' 
-                        : 'partially_paid'
-                    }
-                  : course
-              );
-              
-              localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-              
-              // Immediately update state
               setEnrolledCourses(updatedEnrollments);
-              
-              // Close the modal
-              setShowInsufficientFundsModal(false);
-              
-              // Trigger a refresh of enrolled courses to ensure latest data
-              enrollmentService.getUserEnrolledCourses()
-                .then(freshEnrollments => {
-                  setEnrolledCourses(freshEnrollments);
-                })
-                .catch(error => {
-                  console.error('Error refreshing enrolled courses:', error);
-                });
-              
-              toast.success("Installment payment processed successfully!");
+              // toast.success("Automatically paid the next installment!");
             })
-            .catch(error => {
-              console.error('Full error object:', error);
-              
-              // Log detailed error information
-              if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                console.error('Error response data:', error.response.data);
-                console.error('Error response status:', error.response.status);
-                console.error('Error response headers:', error.response.headers);
-                
-                // Check for specific "already paid" error
-                const isAlreadyPaidError = 
-                  error.response.data?.message?.toLowerCase().includes('already been paid') ||
-                  error.response.status === 400;
-
-                if (isAlreadyPaidError) {
-                  // Find the next unpaid installment
-                  const nextUnpaidInstallment = selectedCourse.installments?.find(
-                    inst => inst.status !== 'paid'
-                  );
-
-                  if (nextUnpaidInstallment) {
-                    // Automatically try to pay the next installment
-                    enrollmentService.processInstallmentPayment(
-                      selectedCourse.course_id, 
-                      nextUnpaidInstallment.id, 
-                      nextUnpaidInstallment.amount
-                    )
-                    .then(response => {
-                      // Update UI to reflect the new paid installment
-                      const updatedEnrollments = enrolledCourses.map(course => 
-                        course.enrollment_id === selectedCourse.enrollment_id
-                          ? { 
-                              ...course, 
-                              installments: course.installments?.map(inst => 
-                                inst.id === nextUnpaidInstallment.id 
-                                  ? { 
-                                      ...inst,
-                                      status: 'paid',
-                                      paid_at: new Date().toISOString()
-                                    } 
-                                  : inst
-                              ),
-                              payment_status: course.installments?.every(inst => inst.status === 'paid') 
-                                ? 'fully_paid' 
-                                : 'partially_paid'
-                            }
-                          : course
-                      );
-
-                      setEnrolledCourses(updatedEnrollments);
-                      toast.success("Automatically paid the next installment!");
-                    })
-                    .catch(retryError => {
-                      console.error('Error paying next installment:', retryError);
-                      toast.error('Failed to pay the next installment');
-                    });
-                    return;
-                  }
-                }
-
-                // Try to extract and display a meaningful error message
-                const errorMessage = 
-                  error.response.data?.message || 
-                  error.response.data?.error || 
-                  'Failed to process installment payment';
-                
-                toast.error(errorMessage);
-              } else if (error.request) {
-                // The request was made but no response was received
-                console.error('No response received:', error.request);
-                toast.error('No response from server. Please check your connection.');
-              } else {
-                // Something happened in setting up the request that triggered an Error
-                console.error('Error setting up request:', error.message);
-                toast.error(error.message || 'An unexpected error occurred');
-              }
-
-              // Reset processing state
-              setIsProcessingPayment(false);
-            })
-            .finally(() => {
-              // Reset processing state
-              setIsProcessingPayment(false);
+            .catch(retryError => {
+              console.error('Error paying next installment:', retryError);
+              toast.error('Failed to pay the next installment');
             });
+            return;
           }
         }}
         isProcessingPayment={isProcessingPayment}

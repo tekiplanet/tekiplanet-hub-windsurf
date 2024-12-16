@@ -95,6 +95,15 @@ class EnrollmentController extends Controller
                 'course_title' => optional($course)->title,
                 'course_image' => optional($course)->image_url,
                 'enrollment_status' => $enrollment->status,
+                'enrolled_at' => $enrollment->enrolled_at 
+                    ? (is_string($enrollment->enrolled_at) 
+                        ? $enrollment->enrolled_at 
+                        : $enrollment->enrolled_at->format('Y-m-d\TH:i:s.uP')) 
+                    : ($enrollment->created_at 
+                        ? (is_string($enrollment->created_at) 
+                            ? $enrollment->created_at 
+                            : $enrollment->created_at->format('Y-m-d\TH:i:s.uP')) 
+                        : null),
                 'payment_status' => $paymentStatus,
                 'total_tuition' => $totalTuition,
                 'paid_amount' => $paidAmount,
@@ -349,7 +358,7 @@ class EnrollmentController extends Controller
                 'installment_id' => $installment->id,
                 'amount' => $validated['amount'],
                 'type' => 'installment_payment',
-                'status' => 'success',
+                'status' => 'completed',
                 'payment_method' => $request->input('payment_method', 'wallet'),
                 'transaction_date' => now(),
                 'reference' => 'INST-' . uniqid()
