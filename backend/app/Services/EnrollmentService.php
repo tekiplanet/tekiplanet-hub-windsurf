@@ -13,8 +13,8 @@ class EnrollmentService
 {
     public function enrollUserInCourse(User $user, Course $course)
     {
-        // Get enrollment fee from settings
-        $enrollmentFee = Setting::where('key', 'enrollment_fee')->first()->value ?? 0;
+        // Get enrollment fee directly from the first settings record
+        $enrollmentFee = Setting::first()->enrollment_fee ?? 0;
 
         // Start a database transaction
         return DB::transaction(function () use ($user, $course, $enrollmentFee) {
