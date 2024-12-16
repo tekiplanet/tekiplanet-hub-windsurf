@@ -115,6 +115,79 @@ const CourseManagement: React.FC = () => {
     ) || null;
   }, [enrollments, courseIdState]);
 
+  // Debug curriculum
+  React.useEffect(() => {
+    console.log('Course Object:', course);
+  }, [course]);
+
+  // Render Curriculum Section
+  const renderCurriculum = () => {
+    console.log('Rendering Curriculum - Course:', course);
+    
+    // Try different possible curriculum paths
+    const curriculumData = 
+      course?.curriculum || 
+      course?.modules || 
+      course?.content || 
+      course?.courseContent;
+
+    console.log('Curriculum Data:', curriculumData);
+
+    if (!curriculumData || curriculumData.length === 0) {
+      return (
+        <div className="text-center text-muted-foreground">
+          No curriculum available for this course. 
+          <pre className="mt-2 text-xs">{JSON.stringify(course, null, 2)}</pre>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="space-y-4">
+          {curriculumData.map((module, moduleIndex) => (
+            <div key={module.id || moduleIndex} className="border rounded-lg p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-lg font-semibold">
+                  Module {moduleIndex + 1}: {module.title || module.name || `Unnamed Module`}
+                </h4>
+                <span className="text-sm text-muted-foreground">
+                  {(module.topics?.length || module.lessons?.length || 0) + " " + 
+                   (module.topics ? "Topics" : module.lessons ? "Lessons" : "Items")}
+                </span>
+              </div>
+              
+              {/* Handle different curriculum structures */}
+              {(module.topics || module.lessons || module.content)?.map((item, itemIndex) => (
+                <div 
+                  key={item.id || itemIndex} 
+                  className="bg-secondary/50 p-3 rounded-md mt-2"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">
+                      {item.title || item.name || `Item ${itemIndex + 1}`}
+                    </span>
+                    {item.duration && (
+                      <span className="text-sm text-muted-foreground">
+                        {item.duration} min
+                      </span>
+                    )}
+                  </div>
+                  
+                  {item.description && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {item.description}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // If no course found, keep existing not found logic
   if (!course) {
     return (
@@ -136,16 +209,28 @@ const CourseManagement: React.FC = () => {
     <div className="flex flex-col min-h-screen">
       {/* Main container with proper padding */}
       <div className="flex-1 px-4 md:px-6 py-4 max-w-[100vw] overflow-x-hidden">
-        {/* Header Section */}
-        <div className="mb-6">
-          <h1 className="text-xl md:text-3xl font-bold break-words">{course.title}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{course.description}</p>
-          <Badge 
-            variant={enrollment?.payment_status === 'fully_paid' ? "default" : "secondary"}
-            className="mt-2 text-xs"
-          >
-            {enrollment?.payment_status === 'fully_paid' ? "Tuition Paid" : "Payment Required"}
-          </Badge>
+        {/* Header Section with Course Image */}
+        <div className="mb-6 flex flex-col md:flex-row items-center gap-6">
+
+
+          {/* Course Details */}
+          <div className="flex-1">
+            <h1 className="text-xl md:text-3xl font-bold break-words mb-2">{course.title}</h1>
+            <p className="text-sm text-muted-foreground mb-3">{course.description}</p>
+            <Badge 
+              variant={enrollment?.payment_status === 'fully_paid' ? "default" : "secondary"}
+              className="mb-2 text-xs"
+            >
+              {enrollment?.payment_status === 'fully_paid' ? "Tuition Paid" : "Payment Required"}
+            </Badge>
+            
+            {/* Additional Course Info */}
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <span>Level: {course.level}</span>
+              <span>•</span>
+              <span>Duration: {course.duration_hours} Months</span>
+            </div>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -158,7 +243,7 @@ const CourseManagement: React.FC = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm text-muted-foreground truncate">Duration</p>
-                  <p className="text-sm font-medium truncate">{course.duration_hours} hours</p>
+                  <p className="text-sm font-medium truncate">{course.duration_hours} Months</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -199,6 +284,8 @@ const CourseManagement: React.FC = () => {
           </CardContent>
         </Card>
 
+
+
         {/* Tabs Section */}
         <Tabs defaultValue="content" className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-4">
@@ -221,8 +308,8 @@ const CourseManagement: React.FC = () => {
 
           {/* Tab Content */}
           <div className="mt-6">
-            <TabsContent value="content">
-              <CourseContent courseId={courseIdState} />
+            <TabsContent value="content" className="space-y-4">
+              {renderCurriculum()}
             </TabsContent>
             <TabsContent value="schedule">
               <CourseSchedule courseId={courseIdState} />
