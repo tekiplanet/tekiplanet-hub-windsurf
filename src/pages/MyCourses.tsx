@@ -44,6 +44,7 @@ interface EnrolledCourse {
   payment_status: 'not_started' | 'partially_paid' | 'fully_paid' | 'overdue';
   total_tuition: number;
   paid_amount: number;
+  progress: number;
   installments: {
     id: string;
     amount: number;
@@ -189,6 +190,7 @@ export default function MyCourses() {
   const [processingCourse, setProcessingCourse] = useState<EnrolledCourse | null>(null);
   const [showFullPaymentConfirmModal, setShowFullPaymentConfirmModal] = useState(false);
   const [fullPaymentCourse, setFullPaymentCourse] = useState<EnrolledCourse | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Get user's current balance
   const balance = user?.wallet_balance || 0;
@@ -232,7 +234,7 @@ export default function MyCourses() {
         return new Date(b.enrollment_status).getTime() - new Date(a.enrollment_status).getTime();
       }
       if (sortBy === "progress") {
-        return (b.paid_amount || 0) - (a.paid_amount || 0);
+        return (b.progress ?? 0) - (a.progress ?? 0);
       }
       return 0;
     });
@@ -367,7 +369,7 @@ export default function MyCourses() {
     navigate("/dashboard/wallet");
   };
 
-  const handleFullPaymentConfirm = () => {
+  const handleFullPaymentConfirm = async () => {
     if (!fullPaymentCourse || !user) return;
 
     const fullAmount = fullPaymentCourse.total_tuition;
@@ -386,49 +388,54 @@ export default function MyCourses() {
       return;
     }
 
-    // Process full payment
-    deductBalance(user.id, fullAmount);
-    
-    // Record transaction
-    addTransaction(user.id, {
-      id: `TRX-${Date.now()}`,
-      type: 'debit',
-      amount: fullAmount,
-      description: `Full tuition payment for ${fullPaymentCourse.course_title}`,
-      date: new Date().toISOString()
-    });
+    // Set processing state
+    setIsProcessingPayment(true);
 
-    // Update enrollment with full payment status
-    const updatedEnrollments = enrolledCourses.map(course => 
-      course.enrollment_id === fullPaymentCourse.enrollment_id
-        ? { 
-            ...course, 
-            payment_status: 'fully_paid',
-            paid_amount: fullAmount
-          }
-        : course
-    );
+    try {
+      // Process full tuition payment via backend
+      const response = await enrollmentService.processFullTuitionPayment(
+        fullPaymentCourse.course_id, 
+        fullAmount
+      );
 
-    // Update localStorage
-    const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-    const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-      course.enrollment_id === fullPaymentCourse.enrollment_id
-        ? { 
-            ...course, 
-            payment_status: 'fully_paid',
-            paid_amount: fullAmount
-          }
-        : course
-    );
-    
-    localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-    setEnrolledCourses(updatedEnrollments);
-    
-    // Close full payment confirmation modal
-    setShowFullPaymentConfirmModal(false);
-    setFullPaymentCourse(null);
-    
-    toast.success("Full tuition payment processed successfully!");
+      // Update local state to reflect payment
+      const updatedEnrollments = enrolledCourses.map(course => 
+        course.enrollment_id === fullPaymentCourse.enrollment_id
+          ? { 
+              ...course, 
+              payment_status: 'fully_paid',
+              paid_amount: fullAmount
+            }
+          : course
+      );
+
+      // Update localStorage
+      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+        course.enrollment_id === fullPaymentCourse.enrollment_id
+          ? { 
+              ...course, 
+              payment_status: 'fully_paid',
+              paid_amount: fullAmount
+            }
+          : course
+      );
+      
+      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+      setEnrolledCourses(updatedEnrollments);
+      
+      // Close full payment confirmation modal
+      setShowFullPaymentConfirmModal(false);
+      setFullPaymentCourse(null);
+      
+      toast.success("Full tuition payment processed successfully!");
+    } catch (error) {
+      console.error('Full payment processing error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to process payment');
+    } finally {
+      // Reset processing state
+      setIsProcessingPayment(false);
+    }
   };
 
   const FullPaymentConfirmModal = ({ 
@@ -494,8 +501,13 @@ export default function MyCourses() {
               <Button 
                 onClick={onConfirm} 
                 className="text-white"
+                disabled={isProcessingPayment}
               >
-                Confirm Payment
+                {isProcessingPayment ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Confirm Payment'
+                )}
               </Button>
             )}
           </DialogFooter>
@@ -651,9 +663,9 @@ export default function MyCourses() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Progress</span>
-                      <span className="text-primary">{enrollment.paid_amount}%</span>
+                      <span className="text-primary">{Math.round(enrollment.progress || 0)}%</span>
                     </div>
-                    <Progress value={enrollment.paid_amount} className="h-2" />
+                    <Progress value={enrollment.progress || 0} className="h-2" />
                   </div>
 
                   {/* Next Up Section */}

@@ -155,4 +155,20 @@ export const enrollmentService = {
       throw error;
     }
   },
+
+  async processFullTuitionPayment(courseId: string, amount: number) {
+    try {
+      const response = await apiClient.post('/api/enrollments/full-tuition-payment', {
+        course_id: courseId,
+        amount: amount
+      });
+
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error)) {
+        throw new Error(error.response?.data.message || 'Failed to process full tuition payment');
+      }
+      throw error;
+    }
+  },
 };

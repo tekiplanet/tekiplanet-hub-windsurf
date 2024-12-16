@@ -6,9 +6,11 @@ use App\Models\Course;
 use App\Models\User;
 use App\Models\Enrollment;
 use App\Models\Installment;
+use App\Models\Transaction;
 use App\Services\EnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EnrollmentController extends Controller
@@ -94,6 +96,7 @@ class EnrollmentController extends Controller
                 'payment_status' => $paymentStatus,
                 'total_tuition' => $totalTuition,
                 'paid_amount' => $paidAmount,
+                'progress' => $enrollment->progress ?? 0,
                 'installments' => $installments->map(function($installment) {
                     return [
                         'id' => $installment->id,
@@ -181,6 +184,108 @@ class EnrollmentController extends Controller
             'message' => 'Course enrolled successfully',
             'enrollment_id' => $enrollment->id
         ]);
+    }
+
+    public function processFullTuitionPayment(Request $request)
+    {
+        // Validate the request
+        $validated = $request->validate([
+            'course_id' => 'required|exists:courses,id',
+            'amount' => 'required|numeric|min:0'
+        ]);
+
+        // Get the authenticated user
+        $user = Auth::user();
+
+        // Find the course
+        $course = Course::findOrFail($validated['course_id']);
+
+        // Check if user is already enrolled
+        $enrollment = Enrollment::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->first();
+
+        // Validate amount matches course price
+        if (abs($course->price - $validated['amount']) > 0.01) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid payment amount'
+            ], 400);
+        }
+
+        // Start database transaction
+        DB::beginTransaction();
+
+        try {
+            // Deduct balance from user's wallet
+            $user->wallet_balance -= $validated['amount'];
+            $user->save();
+
+            // If not enrolled, create enrollment
+            if (!$enrollment) {
+                $enrollment = Enrollment::create([
+                    'user_id' => $user->id,
+                    'course_id' => $course->id,
+                    'status' => 'active',
+                    'progress' => 0,
+                    'enrolled_at' => now()
+                ]);
+            } else {
+                // Update existing enrollment status
+                $enrollment->status = 'active';
+                $enrollment->save();
+            }
+
+            // Check if full payment installment already exists
+            $existingInstallment = Installment::where('enrollment_id', $enrollment->id)
+                ->where('status', 'paid')
+                ->first();
+
+            // Create full payment installment if not exists
+            if (!$existingInstallment) {
+                Installment::create([
+                    'enrollment_id' => $enrollment->id,
+                    'user_id' => $user->id,
+                    'amount' => $course->price,
+                    'due_date' => now(),
+                    'status' => 'paid',
+                    'paid_at' => now()
+                ]);
+            }
+
+            // Record transaction
+            Transaction::create([
+                'user_id' => $user->id,
+                'type' => 'debit',
+                'amount' => $validated['amount'],
+                'description' => "Full tuition payment for {$course->title}",
+                'status' => 'completed'
+            ]);
+
+            // Commit transaction
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Course payment processed successfully',
+                'enrollment_id' => $enrollment->id
+            ]);
+        } catch (\Exception $e) {
+            // Rollback transaction
+            DB::rollBack();
+
+            // Log the error
+            Log::error('Full tuition payment processing failed', [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment processing failed'
+            ], 500);
+        }
     }
 
     // Helper method to calculate overall payment status
