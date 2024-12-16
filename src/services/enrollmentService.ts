@@ -55,7 +55,7 @@ export const enrollmentService = {
       }
 
       // Proceed with enrollment if not already enrolled
-      const response = await apiClient.post('/api/enrollments/enroll', { course_id: courseId });
+      const response = await apiClient.post('/enrollments/enroll', { course_id: courseId });
       
       return {
         success: true,
@@ -85,7 +85,7 @@ export const enrollmentService = {
 
   async getUserEnrollments() {
     try {
-      const response = await apiClient.get('/api/enrollments');
+      const response = await apiClient.get('/enrollments');
       return response.data.enrollments;
     } catch (error) {
       if (isAxiosError(error)) {
@@ -98,13 +98,13 @@ export const enrollmentService = {
   async getUserEnrolledCourses() {
     try {
       console.log('Attempting to fetch enrolled courses');
-      const response = await apiClient.get('/api/courses/enrolled');
+      const response = await apiClient.get('/courses/enrolled');
       
-      console.log('Enrolled courses response:', response.data);
+      console.log('Enrolled courses response:', JSON.stringify(response.data, null, 2));
       
       // Map the backend response to the expected frontend format
       const enrolledCourses = response.data.enrollments.map((enrollment: any) => {
-        console.log('Individual enrollment:', enrollment);
+        console.log('Individual enrollment:', JSON.stringify(enrollment, null, 2));
         return {
           enrollment_id: enrollment.enrollment_id,
           course_id: enrollment.course_id,
@@ -131,7 +131,7 @@ export const enrollmentService = {
         };
       });
 
-      console.log('Mapped enrolled courses:', enrolledCourses);
+      console.log('Mapped enrolled courses:', JSON.stringify(enrolledCourses, null, 2));
 
       return enrolledCourses;
     } catch (error) {
@@ -142,7 +142,7 @@ export const enrollmentService = {
 
   async processFullPayment(courseId: string, amount: number) {
     try {
-      const response = await apiClient.post('/api/enrollments/full-payment', {
+      const response = await apiClient.post('/enrollments/full-payment', {
         course_id: courseId,
         amount: amount
       });
@@ -158,7 +158,7 @@ export const enrollmentService = {
 
   async processFullTuitionPayment(courseId: string, amount: number) {
     try {
-      const response = await apiClient.post('/api/enrollments/full-tuition-payment', {
+      const response = await apiClient.post('/enrollments/full-tuition-payment', {
         course_id: courseId,
         amount: amount
       });
@@ -208,9 +208,44 @@ export const enrollmentService = {
       paid_at: string | null;
     }[]
   }> {
-    return apiClient.post('/enrollments/installment-payment', {
-      course_id: courseId,
-      amount: amount
-    });
-  }
+    try {
+      console.log('Processing initial installment plan', { courseId, amount });
+      const response = await apiClient.post('/enrollments/installment-plan', {
+        course_id: courseId,
+        amount: amount
+      });
+
+      console.log('Installment plan response:', JSON.stringify(response.data, null, 2));
+
+      // Validate response structure
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.message || 'Failed to create installment plan');
+      }
+
+      // Ensure installments exist
+      if (!response.data.installments || response.data.installments.length === 0) {
+        throw new Error('No installments returned');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error in processInitialInstallmentPlan:', error);
+      
+      // Provide more detailed error information
+      if (isAxiosError(error)) {
+        console.error('Axios error details:', {
+          response: error.response?.data,
+          status: error.response?.status,
+          headers: error.response?.headers
+        });
+        
+        throw new Error(
+          error.response?.data?.message || 
+          'Network error occurred while creating installment plan'
+        );
+      }
+      
+      throw error;
+    }
+  },
 };

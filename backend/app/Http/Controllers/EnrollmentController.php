@@ -507,6 +507,128 @@ class EnrollmentController extends Controller
         }
     }
 
+    public function processInstallmentPlan(Request $request)
+    {
+        // Validate the request
+        $validated = $request->validate([
+            'course_id' => 'required|exists:courses,id',
+            'amount' => 'required|numeric|min:0'
+        ]);
+
+        // Get the authenticated user
+        $user = Auth::user();
+
+        // Find the course
+        $course = Course::findOrFail($validated['course_id']);
+
+        // Validate amount is half of the course price
+        $halfPrice = $course->price / 2;
+        if (abs($halfPrice - $validated['amount']) > 0.01) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid installment amount'
+            ], 400);
+        }
+
+        // Start database transaction
+        DB::beginTransaction();
+
+        try {
+            // Find or create enrollment
+            $enrollment = Enrollment::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'course_id' => $course->id
+                ],
+                [
+                    'status' => 'active',
+                    'progress' => 0,
+                    'enrolled_at' => now()
+                ]
+            );
+
+            // Check if installments already exist for this enrollment
+            $existingInstallments = Installment::where('enrollment_id', $enrollment->id)->count();
+            if ($existingInstallments > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Installment plan already exists for this course'
+                ], 400);
+            }
+
+            // Create first installment (pending)
+            $firstInstallment = Installment::create([
+                'enrollment_id' => $enrollment->id,
+                'user_id' => $user->id,
+                'amount' => $halfPrice,
+                'due_date' => now()->addWeeks(1),
+                'status' => 'pending',
+                'paid_at' => null
+            ]);
+
+            // Create second installment (pending)
+            $secondInstallment = Installment::create([
+                'enrollment_id' => $enrollment->id,
+                'user_id' => $user->id,
+                'amount' => $halfPrice,
+                'due_date' => now()->addMonths(1),
+                'status' => 'pending',
+                'paid_at' => null
+            ]);
+
+            // Update enrollment payment status
+            $enrollment->payment_status = 'partially_paid';
+            $enrollment->save();
+
+            // Commit transaction
+            DB::commit();
+
+            // Log the transaction
+            Log::info('Installment plan created', [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'first_installment_id' => $firstInstallment->id,
+                'second_installment_id' => $secondInstallment->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Installment plan created successfully',
+                'installments' => [
+                    [
+                        'id' => $firstInstallment->id,
+                        'amount' => $firstInstallment->amount,
+                        'due_date' => $firstInstallment->due_date,
+                        'status' => $firstInstallment->status,
+                        'paid_at' => $firstInstallment->paid_at,
+                    ],
+                    [
+                        'id' => $secondInstallment->id,
+                        'amount' => $secondInstallment->amount,
+                        'due_date' => $secondInstallment->due_date,
+                        'status' => $secondInstallment->status,
+                        'paid_at' => $secondInstallment->paid_at,
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            // Rollback transaction
+            DB::rollBack();
+
+            // Log error
+            Log::error('Installment plan creation failed', [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create installment plan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     // Helper method to calculate overall payment status
     private function calculateOverallPaymentStatus($installments)
     {

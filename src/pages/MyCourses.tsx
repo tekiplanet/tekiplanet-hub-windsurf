@@ -204,7 +204,9 @@ export default function MyCourses() {
     const fetchEnrolledCourses = async () => {
       try {
         setIsLoading(true);
+        console.log('Fetching enrolled courses with user:', user);
         const courses = await enrollmentService.getUserEnrolledCourses();
+        console.log('Fetched courses:', JSON.stringify(courses, null, 2));
         setEnrolledCourses(courses);
         setIsLoading(false);
       } catch (err) {
@@ -217,6 +219,8 @@ export default function MyCourses() {
 
     if (user?.id) {
       fetchEnrolledCourses();
+    } else {
+      console.warn('No user ID found, cannot fetch courses');
     }
   }, [user?.id]);
 
@@ -279,7 +283,7 @@ export default function MyCourses() {
     setShowPaymentPlanModal(true);
   };
 
-  const handlePaymentPlanConfirm = () => {
+  const handlePaymentPlanConfirm = async () => {
     // Validate that a payment plan is selected
     if (!selectedPaymentPlan) {
       toast.error('Please select a payment plan');
@@ -299,64 +303,42 @@ export default function MyCourses() {
       
       const installmentAmount = Number(processingCourse.total_tuition) / 2;
       
-      // Proceed with creating installment plan
-      setIsProcessingPayment(true);
-      
-      enrollmentService.processInitialInstallmentPlan(
-        processingCourse.course_id, 
-        installmentAmount
-      )
-      .then(response => {
-        // Update local state to reflect installment payment
-        const updatedEnrollments = enrolledCourses.map(course => 
-          course.enrollment_id === processingCourse.enrollment_id
-            ? { 
-                ...course, 
-                payment_status: 'pending_installments',
-                paid_amount: 0,
-                installments: response.installments.map((inst, index) => ({
-                  ...inst,
-                  number: index + 1,
-                  paid: false,
-                  overdue: false
-                }))
-              }
-            : course
+      try {
+        setIsProcessingPayment(true);
+        
+        // Process initial installment plan
+        const response = await enrollmentService.processInitialInstallmentPlan(
+          processingCourse.course_id, 
+          installmentAmount
         );
 
-        // Update localStorage
-        const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-        const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-          course.enrollment_id === processingCourse.enrollment_id
-            ? { 
-                ...course, 
-                payment_status: 'pending_installments',
-                paid_amount: 0,
-                installments: response.installments.map((inst, index) => ({
-                  ...inst,
-                  number: index + 1,
-                  paid: false,
-                  overdue: false
-                }))
-              }
-            : course
+        console.log('Installment plan response:', JSON.stringify(response, null, 2));
+
+        // Ensure the response has the expected structure
+        if (!response || !response.installments) {
+          throw new Error('Invalid installment plan response');
+        }
+
+        // Update the enrolled courses with the new installment details
+        setEnrolledCourses(prevCourses => 
+          prevCourses.map(course => 
+            course.course_id === processingCourse.course_id 
+              ? {
+                  ...course, 
+                  installments: response.installments || [],
+                  payment_status: 'partially_paid'
+                } 
+              : course
+          )
         );
-        
-        localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-        setEnrolledCourses(updatedEnrollments);
-        
-        toast.success("Installment plan created successfully!");
-      })
-      .catch(error => {
+
+        toast.success('Installment plan created successfully');
+      } catch (error) {
         console.error('Installment plan creation error:', error);
-        toast.error(error instanceof Error ? error.message : 'Failed to create installment plan');
-      })
-      .finally(() => {
-        // Reset processing state
+        toast.error('Failed to create installment plan');
+      } finally {
         setIsProcessingPayment(false);
-        setProcessingCourse(null);
-        setSelectedPaymentPlan(null);
-      });
+      }
     }
   };
 
