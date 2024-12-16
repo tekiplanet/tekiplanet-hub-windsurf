@@ -700,7 +700,12 @@ export default function MyCourses() {
                                   <div>
                                     <p className="text-sm">Installment {index + 1}</p>
                                     <p className="text-xs text-muted-foreground">
-                                      Due: {new Date(installment.due_date).toLocaleDateString()}
+                                      Due: {new Date(installment.due_date).toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
                                     </p>
                                   </div>
                                   <Badge 

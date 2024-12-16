@@ -114,7 +114,15 @@ export const enrollmentService = {
           payment_status: enrollment.payment_status,
           total_tuition: enrollment.total_tuition || 0,
           paid_amount: enrollment.paid_amount || 0,
-          installments: enrollment.installments || [],
+          installments: enrollment.installments.map(installment => ({
+            ...installment,
+            due_date: new Date(installment.due_date).toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })
+          })),
           course: {
             id: enrollment.course_id,
             title: enrollment.course_title,
