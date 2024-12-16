@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Calendar as CalendarIcon, Users } from "lucide-react";
-import { courseSchedules } from "@/data/courseSchedules";
+import { courseManagementService } from "@/services/courseManagementService";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ClassSession {
   id: string;
@@ -18,14 +19,48 @@ interface ClassSession {
 }
 
 export default function CourseSchedule({ courseId }: { courseId?: string }) {
-  const schedules = courseSchedules[courseId] || [];
+  const [schedules, setSchedules] = useState<ClassSession[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+
+  useEffect(() => {
+    const fetchCourseSchedule = async () => {
+      if (!courseId) {
+        toast.error("No course ID provided");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const courseDetails = await courseManagementService.getCourseDetails(courseId);
+        
+        // Transform schedules to match ClassSession interface
+        const transformedSchedules = (courseDetails.schedules || []).map(schedule => ({
+          id: schedule.id?.toString() || Math.random().toString(),
+          title: schedule.title || 'Untitled Session',
+          type: schedule.type || 'lecture',
+          date: new Date(schedule.date || Date.now()),
+          duration: schedule.duration || '1 hour',
+          instructor: schedule.instructor || 'TBA',
+          location: schedule.location || 'online',
+          meetingLink: schedule.meetingLink
+        }));
+
+        setSchedules(transformedSchedules);
+      } catch (error) {
+        console.error("Error fetching course schedule:", error);
+        toast.error("Failed to load course schedule");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCourseSchedule();
+  }, [courseId]);
+
   const upcomingClasses = schedules
-    .map(session => ({
-      ...session,
-      date: new Date(session.date)
-    }))
     .filter(session => session.date > new Date());
-  const [date, setDate] = React.useState<Date | undefined>(new Date());
 
   // Function to check if a date has classes
   const isDayWithClass = (day: Date) => {
@@ -33,6 +68,19 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
       session.date.toDateString() === day.toDateString()
     );
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div className="text-muted-foreground animate-pulse">
+            <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p className="font-medium">Loading Schedule...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -137,4 +185,4 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
       </div>
     </div>
   );
-} 
+}
