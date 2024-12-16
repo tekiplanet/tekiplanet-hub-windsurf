@@ -16,6 +16,9 @@ return new class extends Migration
             $table->enum('status', ['pending', 'active', 'completed', 'dropped'])
                   ->default('pending');
             
+            $table->enum('payment_status', ['unpaid', 'partially_paid', 'fully_paid'])
+                  ->default('unpaid');
+            
             $table->decimal('progress', 5, 2)->default(0);
             $table->timestamp('enrolled_at')->useCurrent();
             $table->timestamp('completed_at')->nullable();

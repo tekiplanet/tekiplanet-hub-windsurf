@@ -16,12 +16,18 @@ class Enrollment extends Model
         'status', 
         'progress', 
         'enrolled_at', 
-        'completed_at'
+        'completed_at',
+        'payment_status'
     ];
 
     protected $dates = [
         'enrolled_at', 
         'completed_at'
+    ];
+
+    protected $casts = [
+        'progress' => 'float',
+        'payment_status' => 'string'
     ];
 
     protected static function boot()
