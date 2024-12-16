@@ -123,10 +123,13 @@ const InsufficientFundsModal = ({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  balance: number;
+  balance: number | string;
   requiredAmount: number;
   onFundWallet: () => void;
 }) => {
+  // Convert balance to number
+  const numBalance = Number(balance || 0);
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -139,13 +142,13 @@ const InsufficientFundsModal = ({
         <div className="grid gap-4 py-4">
           <div className="flex flex-col items-center space-y-2">
             <div className="text-sm">
-              <span className="font-semibold">Current Balance:</span> ${balance.toFixed(2)}
+              <span className="font-semibold">Current Balance:</span> ${numBalance.toFixed(2)}
             </div>
             <div className="text-sm">
               <span className="font-semibold">Required Amount:</span> ${requiredAmount.toFixed(2)}
             </div>
             <div className="text-sm text-red-600">
-              Shortfall: ${(requiredAmount - balance).toFixed(2)}
+              Shortfall: ${(requiredAmount - numBalance).toFixed(2)}
             </div>
           </div>
         </div>
@@ -443,7 +446,7 @@ export default function MyCourses() {
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] md:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Confirm Full Tuition Payment</DialogTitle>
             <DialogDescription>
@@ -460,7 +463,7 @@ export default function MyCourses() {
             </div>
             <div className="flex justify-between">
               <span>Current Wallet Balance:</span>
-              <span className={`font-bold ${balance < course.total_tuition ? 'text-destructive' : 'text-green-600'}`}>
+              <span className={`font-bold ${balance < course.total_tuition ? 'text-destructive' : 'text-primary'}`}>
                 {formatCurrency(balance)}
               </span>
             </div>
