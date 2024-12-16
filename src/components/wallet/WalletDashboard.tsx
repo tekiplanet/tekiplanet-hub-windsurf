@@ -714,7 +714,7 @@ export default function WalletDashboard() {
                     >
                       <div className="flex items-center space-x-4">
                         <div className={`
-                          w-10 h-10 rounded-full flex items-center justify-center
+                          w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full flex-shrink-0 flex items-center justify-center
                           ${transaction.type === 'credit' 
                             ? 'bg-green-100 text-green-600' 
                             : 'bg-red-100 text-red-600'}

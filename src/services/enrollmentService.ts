@@ -195,12 +195,88 @@ export const enrollmentService = {
       due_date: dueDate
     });
 
-    return apiClient.post('/enrollments/specific-installment-payment', {
-      course_id: courseId,
-      installment_id: installmentId,
-      amount,
-      due_date: dueDate
-    });
+    try {
+      // First, fetch the current enrollment to get all installments
+      const enrollments = await this.getUserEnrolledCourses();
+      const enrollment = enrollments.find(e => e.course_id === courseId);
+
+      if (!enrollment) {
+        throw new Error('No enrollment found for this course');
+      }
+
+      // Find the next unpaid installment if the provided installment is already paid
+      const installments = enrollment.installments || [];
+      const targetInstallment = installments.find(inst => inst.id === installmentId);
+
+      if (!targetInstallment) {
+        throw new Error('Invalid installment');
+      }
+
+      if (targetInstallment.status === 'paid') {
+        // Find the next unpaid installment
+        const nextUnpaidInstallment = installments.find(inst => inst.status !== 'paid');
+
+        if (nextUnpaidInstallment) {
+          console.warn(`Installment ${installmentId} already paid. Using next unpaid installment.`);
+          installmentId = nextUnpaidInstallment.id;
+          amount = nextUnpaidInstallment.amount;
+        } else {
+          throw new Error('All installments have been paid');
+        }
+      }
+
+      const response = await apiClient.post('/enrollments/specific-installment-payment', {
+        course_id: courseId,
+        installment_id: installmentId,
+        amount,
+        due_date: dueDate
+      });
+
+      return {
+        success: true,
+        message: 'Installment payment processed successfully',
+        installment: response.data.installment || {
+          id: installmentId,
+          amount,
+          due_date: dueDate || '',
+          status: 'paid',
+          paid_at: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('Installment payment error:', error);
+
+      if (isAxiosError(error)) {
+        const errorMessage = error.response?.data?.message || 'Failed to process installment payment';
+        
+        // If the installment is already paid, try to find the next unpaid installment
+        if (errorMessage.toLowerCase().includes('already been paid')) {
+          try {
+            const enrollments = await this.getUserEnrolledCourses();
+            const enrollment = enrollments.find(e => e.course_id === courseId);
+            
+            if (enrollment) {
+              const nextUnpaidInstallment = enrollment.installments
+                .find(inst => inst.status !== 'paid');
+              
+              if (nextUnpaidInstallment) {
+                return this.processInstallmentPayment(
+                  courseId, 
+                  nextUnpaidInstallment.id, 
+                  nextUnpaidInstallment.amount
+                );
+              }
+            }
+          } catch (retryError) {
+            console.error('Error finding next unpaid installment:', retryError);
+          }
+        }
+
+        throw new Error(errorMessage);
+      }
+      
+      throw error;
+    }
   },
 
   async processInitialInstallmentPlan(

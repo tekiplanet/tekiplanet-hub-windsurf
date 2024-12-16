@@ -812,39 +812,13 @@ export default function MyCourses() {
 
             enrollmentService.processInstallmentPayment(
               selectedCourse.course_id, 
-              selectedInstallment.id,
-              selectedInstallment.amount,
-              selectedInstallment.due_date
+              selectedInstallment.id, 
+              selectedInstallment.amount
             )
             .then(response => {
-              console.log('Full server response:', response);
+              console.log('Installment payment response:', response);
 
-              // Check the structure of the response
-              if (!response) {
-                throw new Error('Empty server response');
-              }
-
-              // Try to find the installment data in different possible response structures
-              const installmentData = 
-                response.installment || 
-                response.data?.installment || 
-                response.data || 
-                response;
-
-              console.log('Parsed installment data:', installmentData);
-
-              // Validate installment data
-              if (!installmentData) {
-                throw new Error('Could not extract installment data from server response');
-              }
-
-              // Determine if all installments are now paid
-              const allInstallmentsPaid = selectedCourse.installments?.every(
-                (inst, index) => 
-                  inst.id === selectedInstallment.id ? true : inst.status === 'paid'
-              ) ?? false;
-
-              // Update local state to reflect installment payment
+              // Immediately update the UI to reflect the paid status
               const updatedEnrollments = enrolledCourses.map(course => 
                 course.enrollment_id === selectedCourse.enrollment_id
                   ? { 
@@ -854,13 +828,16 @@ export default function MyCourses() {
                           ? { 
                               ...inst,
                               status: 'paid',
-                              paid: true,
-                              overdue: false
+                              paid_at: new Date().toISOString()
                             } 
                           : inst
                       ),
                       // Update payment status to fully_paid if all installments are paid
-                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'partially_paid'
+                      payment_status: course.installments?.every(inst => 
+                        inst.id === selectedInstallment.id || inst.status === 'paid'
+                      ) 
+                        ? 'fully_paid' 
+                        : 'partially_paid'
                     }
                   : course
               );
@@ -876,22 +853,36 @@ export default function MyCourses() {
                           ? { 
                               ...inst,
                               status: 'paid',
-                              paid: true,
-                              overdue: false
+                              paid_at: new Date().toISOString()
                             } 
                           : inst
                       ),
                       // Update payment status to fully_paid if all installments are paid
-                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'partially_paid'
+                      payment_status: course.installments?.every(inst => 
+                        inst.id === selectedInstallment.id || inst.status === 'paid'
+                      ) 
+                        ? 'fully_paid' 
+                        : 'partially_paid'
                     }
                   : course
               );
               
               localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+              
+              // Immediately update state
               setEnrolledCourses(updatedEnrollments);
               
               // Close the modal
               setShowInsufficientFundsModal(false);
+              
+              // Trigger a refresh of enrolled courses to ensure latest data
+              enrollmentService.getUserEnrolledCourses()
+                .then(freshEnrollments => {
+                  setEnrolledCourses(freshEnrollments);
+                })
+                .catch(error => {
+                  console.error('Error refreshing enrolled courses:', error);
+                });
               
               toast.success("Installment payment processed successfully!");
             })
@@ -906,6 +897,57 @@ export default function MyCourses() {
                 console.error('Error response status:', error.response.status);
                 console.error('Error response headers:', error.response.headers);
                 
+                // Check for specific "already paid" error
+                const isAlreadyPaidError = 
+                  error.response.data?.message?.toLowerCase().includes('already been paid') ||
+                  error.response.status === 400;
+
+                if (isAlreadyPaidError) {
+                  // Find the next unpaid installment
+                  const nextUnpaidInstallment = selectedCourse.installments?.find(
+                    inst => inst.status !== 'paid'
+                  );
+
+                  if (nextUnpaidInstallment) {
+                    // Automatically try to pay the next installment
+                    enrollmentService.processInstallmentPayment(
+                      selectedCourse.course_id, 
+                      nextUnpaidInstallment.id, 
+                      nextUnpaidInstallment.amount
+                    )
+                    .then(response => {
+                      // Update UI to reflect the new paid installment
+                      const updatedEnrollments = enrolledCourses.map(course => 
+                        course.enrollment_id === selectedCourse.enrollment_id
+                          ? { 
+                              ...course, 
+                              installments: course.installments?.map(inst => 
+                                inst.id === nextUnpaidInstallment.id 
+                                  ? { 
+                                      ...inst,
+                                      status: 'paid',
+                                      paid_at: new Date().toISOString()
+                                    } 
+                                  : inst
+                              ),
+                              payment_status: course.installments?.every(inst => inst.status === 'paid') 
+                                ? 'fully_paid' 
+                                : 'partially_paid'
+                            }
+                          : course
+                      );
+
+                      setEnrolledCourses(updatedEnrollments);
+                      toast.success("Automatically paid the next installment!");
+                    })
+                    .catch(retryError => {
+                      console.error('Error paying next installment:', retryError);
+                      toast.error('Failed to pay the next installment');
+                    });
+                    return;
+                  }
+                }
+
                 // Try to extract and display a meaningful error message
                 const errorMessage = 
                   error.response.data?.message || 
