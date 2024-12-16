@@ -10,6 +10,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\EnrollmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +50,14 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/user/preferences', [UserController::class, 'updatePreferences']);
     Route::put('/user/type', [UserController::class, 'updateUserType']);
+});
+
+// Enrollment Routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('enrollments')->group(function () {
+        Route::post('/enroll', [EnrollmentController::class, 'enroll']);
+        Route::get('/', [EnrollmentController::class, 'getUserEnrollments']);
+    });
 });
 
 // Course Routes

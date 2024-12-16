@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useWalletStore } from '@/store/useWalletStore';
 import { courseService } from '@/services/courseService';
 import { settingsService } from '@/services/settingsService';
+import { enrollmentService } from '@/services/enrollmentService';
 import { InsufficientFundsModal } from "@/components/wallet/InsufficientFundsModal";
 import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -220,28 +221,38 @@ export default function CourseDetails() {
   }
 
   const handleConfirmEnrollment = async () => {
-    setShowConfirmEnrollmentModal(false);
+    if (!course) return;
+
     setLoading(true);
-
     try {
-      const response = await courseService.enrollInCourse({
-        courseId: course.id,
-        userId: user.id,
-        amount: ENROLLMENT_FEE
+      // Attempt to enroll in the course
+      const response = await enrollmentService.enrollInCourse(course.id);
+      
+      // Update wallet balance in local state
+      const updatedBalance = walletBalance - ENROLLMENT_FEE;
+      useAuthStore.getState().updateUser({ wallet_balance: updatedBalance });
+
+      // Show success toast
+      toast.success('Successfully enrolled in the course!', {
+        description: `You've been enrolled in ${course.title}`
       });
 
-      if (response.success && response.data) {
-        toast.success('Successfully enrolled in the course!', {
-          description: `You are now enrolled in ${course.title}`
-        });
-        
-        // Navigate to the course page or dashboard
-        navigate('/dashboard/academy');
-      }
+      // Navigate to My Courses
+      navigate('/my-courses');
     } catch (error) {
-      toast.error('Enrollment failed', {
-        description: 'There was an issue enrolling in the course. Please try again.'
+      // Handle enrollment errors
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to enroll in the course';
+      
+      toast.error('Enrollment Failed', {
+        description: errorMessage
       });
+
+      // If insufficient funds, show insufficient funds modal
+      if (errorMessage.toLowerCase().includes('insufficient')) {
+        setShowInsufficientFundsModal(true);
+      }
     } finally {
       setLoading(false);
     }
