@@ -138,5 +138,21 @@ export const enrollmentService = {
       console.error('Failed to fetch enrolled courses:', error);
       throw error;
     }
-  }
+  },
+
+  async processFullPayment(courseId: string, amount: number) {
+    try {
+      const response = await apiClient.post('/api/enrollments/full-payment', {
+        course_id: courseId,
+        amount: amount
+      });
+
+      return response.data;
+    } catch (error) {
+      if (isAxiosError(error)) {
+        throw new Error(error.response?.data.message || 'Failed to process full payment');
+      }
+      throw error;
+    }
+  },
 };

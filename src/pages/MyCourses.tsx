@@ -64,8 +64,8 @@ function PaymentPlanModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
-  selectedPlan: 'full' | 'installment';
-  onPlanChange: (plan: 'full' | 'installment') => void;
+  selectedPlan: 'full' | 'installment' | null;
+  onPlanChange: (plan: 'full' | 'installment' | null) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,7 +79,7 @@ function PaymentPlanModal({
         <div className="py-4">
           <RadioGroup
             value={selectedPlan}
-            onValueChange={(value: 'full' | 'installment') => onPlanChange(value)}
+            onValueChange={(value: 'full' | 'installment' | null) => onPlanChange(value)}
             className="space-y-4"
           >
             <div className="flex items-center space-x-2">
@@ -130,8 +130,10 @@ export default function MyCourses() {
   const [showInsufficientFundsModal, setShowInsufficientFundsModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<EnrolledCourse | null>(null);
   const [showPaymentPlanModal, setShowPaymentPlanModal] = useState(false);
-  const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<'full' | 'installment'>('full');
+  const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<'full' | 'installment' | null>(null);
   const [processingCourse, setProcessingCourse] = useState<EnrolledCourse | null>(null);
+  const [showFullPaymentConfirmModal, setShowFullPaymentConfirmModal] = useState(false);
+  const [fullPaymentCourse, setFullPaymentCourse] = useState<EnrolledCourse | null>(null);
 
   // Get user's current balance
   const balance = getBalance(user?.id || '');
@@ -213,121 +215,27 @@ export default function MyCourses() {
   };
 
   const handlePaymentPlanConfirm = () => {
-    if (!processingCourse || !user) return;
-
-    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    const fullAmount = processingCourse.total_tuition;
-    const installmentAmount = fullAmount / 2;
-
-    if (selectedPaymentPlan === 'full') {
-      if (balance < fullAmount) {
-        setSelectedCourse(processingCourse);
-        setShowInsufficientFundsModal(true);
-        setShowPaymentPlanModal(false);
-        return;
-      }
-
-      // Process full payment
-      deductBalance(user.id, fullAmount);
-      
-      // Record transaction
-      addTransaction(user.id, {
-        id: `TRX-${Date.now()}`,
-        type: 'debit',
-        amount: fullAmount,
-        description: `Full tuition payment for ${processingCourse.course_title}`,
-        date: new Date().toISOString()
-      });
-
-      // Update enrollment with full payment status
-      const updatedEnrollments = enrolledCourses.map(course => 
-        course.enrollment_id === processingCourse.enrollment_id
-          ? { 
-              ...course, 
-              payment_status: 'fully_paid',
-              paid_amount: fullAmount
-            }
-          : course
-      );
-
-      // Update localStorage
-      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-        course.enrollment_id === processingCourse.enrollment_id
-          ? { 
-              ...course, 
-              payment_status: 'fully_paid',
-              paid_amount: fullAmount
-            }
-          : course
-      );
-      
-      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-      setEnrolledCourses(updatedEnrollments);
-      
-      toast.success("Full tuition payment processed successfully!");
-    } else {
-      // Set up installment plan
-      const updatedEnrollments = enrolledCourses.map(course => 
-        course.enrollment_id === processingCourse.enrollment_id
-          ? { 
-              ...course, 
-              payment_status: 'partially_paid',
-              installments: [
-                {
-                  id: `INST-${Date.now()}`,
-                  amount: installmentAmount,
-                  due_date: new Date().toISOString(),
-                  status: 'pending',
-                  paid_at: null
-                },
-                {
-                  id: `INST-${Date.now() + 1}`,
-                  amount: installmentAmount,
-                  due_date: dueDate,
-                  status: 'pending',
-                  paid_at: null
-                }
-              ]
-            }
-          : course
-      );
-
-      // Update localStorage
-      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-        course.enrollment_id === processingCourse.enrollment_id
-          ? { 
-              ...course, 
-              payment_status: 'partially_paid',
-              installments: [
-                {
-                  id: `INST-${Date.now()}`,
-                  amount: installmentAmount,
-                  due_date: new Date().toISOString(),
-                  status: 'pending',
-                  paid_at: null
-                },
-                {
-                  id: `INST-${Date.now() + 1}`,
-                  amount: installmentAmount,
-                  due_date: dueDate,
-                  status: 'pending',
-                  paid_at: null
-                }
-              ]
-            }
-          : course
-      );
-      
-      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-      setEnrolledCourses(updatedEnrollments);
-      
-      toast.success("Installment plan set up successfully!");
+    // Validate that a payment plan is selected
+    if (!selectedPaymentPlan) {
+      toast.error('Please select a payment plan');
+      return;
     }
 
+    // Close payment plan modal
     setShowPaymentPlanModal(false);
-    setProcessingCourse(null);
+
+    // If full payment is selected, show full payment confirmation
+    if (selectedPaymentPlan === 'full') {
+      setFullPaymentCourse(processingCourse);
+      setShowFullPaymentConfirmModal(true);
+    } else {
+      // If installment is selected, handle installment logic
+      // You can add installment-specific logic here
+      toast.info('Installment payment flow to be implemented');
+    }
+
+    // Reset state
+    setSelectedPaymentPlan(null);
   };
 
   const handleInstallmentPayment = (enrollment: EnrolledCourse, installmentId: string) => {
@@ -402,6 +310,119 @@ export default function MyCourses() {
   const handleFundWallet = () => {
     setShowInsufficientFundsModal(false);
     navigate("/dashboard/wallet");
+  };
+
+  const FullPaymentConfirmModal = ({ 
+    open, 
+    onOpenChange, 
+    course, 
+    onConfirm 
+  }: { 
+    open: boolean; 
+    onOpenChange: (open: boolean) => void; 
+    course: EnrolledCourse | null;
+    onConfirm: () => void;
+  }) => {
+    if (!course) return null;
+
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Full Tuition Payment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to pay the full tuition for {course.course_title}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <div className="flex justify-between">
+              <span>Course:</span>
+              <span className="font-semibold">{course.course_title}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Total Tuition:</span>
+              <span className="font-bold text-primary">
+                {formatCurrency(course.total_tuition)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Current Wallet Balance:</span>
+              <span className={`font-bold ${balance < course.total_tuition ? 'text-destructive' : 'text-green-600'}`}>
+                {formatCurrency(balance)}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={onConfirm} 
+              disabled={balance < course.total_tuition}
+              className="text-white"
+            >
+              {balance < course.total_tuition 
+                ? 'Insufficient Balance' 
+                : 'Confirm Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  const handleFullPaymentConfirmation = async () => {
+    if (!fullPaymentCourse || !user) {
+      toast.error('Unable to process payment');
+      return;
+    }
+
+    // Check balance
+    if (balance < fullPaymentCourse.total_tuition) {
+      setShowFullPaymentConfirmModal(false);
+      setShowInsufficientFundsModal(true);
+      return;
+    }
+
+    try {
+      // Call backend to process full payment
+      const response = await enrollmentService.processFullPayment(
+        fullPaymentCourse.course_id, 
+        fullPaymentCourse.total_tuition
+      );
+
+      // Deduct from wallet
+      deductBalance(user.id, fullPaymentCourse.total_tuition);
+
+      // Add transaction
+      addTransaction({
+        id: `TRX-${Date.now()}`,
+        type: 'debit',
+        amount: fullPaymentCourse.total_tuition,
+        description: `Full tuition payment for ${fullPaymentCourse.course_title}`,
+        date: new Date().toISOString()
+      });
+
+      // Update local state
+      const updatedEnrollments = enrolledCourses.map(course => 
+        course.enrollment_id === fullPaymentCourse.enrollment_id
+          ? { 
+              ...course, 
+              payment_status: 'fully_paid',
+              paid_amount: fullPaymentCourse.total_tuition
+            }
+          : course
+      );
+
+      setEnrolledCourses(updatedEnrollments);
+
+      // Close modals and show success
+      setShowFullPaymentConfirmModal(false);
+      toast.success('Tuition paid successfully!');
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      toast.error('Failed to process payment');
+    }
   };
 
   return (
@@ -674,10 +695,16 @@ export default function MyCourses() {
 
       <PaymentPlanModal
         open={showPaymentPlanModal}
-        onOpenChange={setShowPaymentPlanModal}
-        onConfirm={handlePaymentPlanConfirm}
+        onOpenChange={(open) => {
+          setShowPaymentPlanModal(open);
+          if (!open) {
+            setSelectedPaymentPlan(null);
+            setProcessingCourse(null);
+          }
+        }}
         selectedPlan={selectedPaymentPlan}
         onPlanChange={setSelectedPaymentPlan}
+        onConfirm={handlePaymentPlanConfirm}
       />
 
       <InsufficientFundsModal
@@ -687,6 +714,13 @@ export default function MyCourses() {
         requiredAmount={selectedCourse?.total_tuition || 0}
         currentBalance={balance}
         type="tuition"
+      />
+
+      <FullPaymentConfirmModal 
+        open={showFullPaymentConfirmModal}
+        onOpenChange={setShowFullPaymentConfirmModal}
+        course={fullPaymentCourse}
+        onConfirm={handleFullPaymentConfirmation}
       />
     </div>
   );

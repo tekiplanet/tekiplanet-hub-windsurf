@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\User;
+use App\Models\Enrollment;
+use App\Models\Installment;
 use App\Services\EnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -111,6 +113,73 @@ class EnrollmentController extends Controller
         return response()->json([
             'success' => true,
             'enrollments' => $enrichedEnrollments
+        ]);
+    }
+
+    public function processFullPayment(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Validate request
+        $validated = $request->validate([
+            'course_id' => 'required|exists:courses,id',
+            'amount' => 'required|numeric|min:0'
+        ]);
+
+        // Find the course
+        $course = Course::findOrFail($validated['course_id']);
+
+        // Verify amount matches course price
+        if (abs($course->price - $validated['amount']) > 0.01) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid payment amount'
+            ], 400);
+        }
+
+        // Check if already enrolled
+        $existingEnrollment = Enrollment::where('user_id', $user->id)
+            ->where('course_id', $course->id)
+            ->first();
+
+        if ($existingEnrollment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Already enrolled in this course'
+            ], 400);
+        }
+
+        // Create enrollment
+        $enrollment = Enrollment::create([
+            'user_id' => $user->id,
+            'course_id' => $course->id,
+            'status' => 'active',
+            'progress' => 0,
+            'enrolled_at' => now()
+        ]);
+
+        // Create full payment installment
+        $installment = Installment::create([
+            'enrollment_id' => $enrollment->id,
+            'user_id' => $user->id,
+            'amount' => $course->price,
+            'due_date' => now(),
+            'status' => 'paid',
+            'paid_at' => now()
+        ]);
+
+        // Log the transaction
+        Log::info('Full course payment processed', [
+            'user_id' => $user->id,
+            'course_id' => $course->id,
+            'amount' => $course->price,
+            'enrollment_id' => $enrollment->id
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Course enrolled successfully',
+            'enrollment_id' => $enrollment->id
         ]);
     }
 
