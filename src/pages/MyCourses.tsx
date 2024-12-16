@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import { useWalletStore } from '@/store/useWalletStore';
 import { toast } from "sonner";
-import { InsufficientFundsModal } from "@/components/wallet/InsufficientFundsModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -114,6 +113,59 @@ function PaymentPlanModal({
     </Dialog>
   );
 }
+
+const InsufficientFundsModal = ({
+  open,
+  onOpenChange,
+  balance,
+  requiredAmount,
+  onFundWallet
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  balance: number;
+  requiredAmount: number;
+  onFundWallet: () => void;
+}) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Insufficient Funds</DialogTitle>
+          <DialogDescription>
+            Your current wallet balance is insufficient for this transaction.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="flex flex-col items-center space-y-2">
+            <div className="text-sm">
+              <span className="font-semibold">Current Balance:</span> ${balance.toFixed(2)}
+            </div>
+            <div className="text-sm">
+              <span className="font-semibold">Required Amount:</span> ${requiredAmount.toFixed(2)}
+            </div>
+            <div className="text-sm text-red-600">
+              Shortfall: ${(requiredAmount - balance).toFixed(2)}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={onFundWallet}
+          >
+            Fund Wallet
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export default function MyCourses() {
   const navigate = useNavigate();
@@ -312,6 +364,70 @@ export default function MyCourses() {
     navigate("/dashboard/wallet");
   };
 
+  const handleFullPaymentConfirm = () => {
+    if (!fullPaymentCourse || !user) return;
+
+    const fullAmount = fullPaymentCourse.total_tuition;
+
+    // Check if balance is sufficient
+    if (balance < fullAmount) {
+      // Set the selected course for insufficient funds modal
+      setSelectedCourse({
+        ...fullPaymentCourse,
+        total_tuition: fullAmount
+      });
+      
+      // Show insufficient funds modal
+      setShowInsufficientFundsModal(true);
+      setShowFullPaymentConfirmModal(false);
+      return;
+    }
+
+    // Process full payment
+    deductBalance(user.id, fullAmount);
+    
+    // Record transaction
+    addTransaction(user.id, {
+      id: `TRX-${Date.now()}`,
+      type: 'debit',
+      amount: fullAmount,
+      description: `Full tuition payment for ${fullPaymentCourse.course_title}`,
+      date: new Date().toISOString()
+    });
+
+    // Update enrollment with full payment status
+    const updatedEnrollments = enrolledCourses.map(course => 
+      course.enrollment_id === fullPaymentCourse.enrollment_id
+        ? { 
+            ...course, 
+            payment_status: 'fully_paid',
+            paid_amount: fullAmount
+          }
+        : course
+    );
+
+    // Update localStorage
+    const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+    const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+      course.enrollment_id === fullPaymentCourse.enrollment_id
+        ? { 
+            ...course, 
+            payment_status: 'fully_paid',
+            paid_amount: fullAmount
+          }
+        : course
+    );
+    
+    localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+    setEnrolledCourses(updatedEnrollments);
+    
+    // Close full payment confirmation modal
+    setShowFullPaymentConfirmModal(false);
+    setFullPaymentCourse(null);
+    
+    toast.success("Full tuition payment processed successfully!");
+  };
+
   const FullPaymentConfirmModal = ({ 
     open, 
     onOpenChange, 
@@ -319,7 +435,7 @@ export default function MyCourses() {
     onConfirm 
   }: { 
     open: boolean; 
-    onOpenChange: (open: boolean) => void; 
+    onOpenChange: (open: boolean) => void;
     course: EnrolledCourse | null;
     onConfirm: () => void;
   }) => {
@@ -327,7 +443,7 @@ export default function MyCourses() {
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirm Full Tuition Payment</DialogTitle>
             <DialogDescription>
@@ -335,10 +451,7 @@ export default function MyCourses() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-2">
-            <div className="flex justify-between">
-              <span>Course:</span>
-              <span className="font-semibold">{course.course_title}</span>
-            </div>
+
             <div className="flex justify-between">
               <span>Total Tuition:</span>
               <span className="font-bold text-primary">
@@ -352,77 +465,38 @@ export default function MyCourses() {
               </span>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={onConfirm} 
-              disabled={balance < course.total_tuition}
-              className="text-white"
-            >
-              {balance < course.total_tuition 
-                ? 'Insufficient Balance' 
-                : 'Confirm Payment'}
-            </Button>
+          <DialogFooter className="flex justify-between">
+
+            {balance < course.total_tuition ? (
+              <div className="flex space-x-2">
+                <Button 
+                  variant="secondary"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate('/dashboard/wallet');
+                  }}
+                >
+                  Fund Wallet
+                </Button>
+                <Button 
+                  disabled
+                  className="text-white hover:text-white/80"
+                >
+                  Insufficient Balance
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={onConfirm} 
+                className="text-white"
+              >
+                Confirm Payment
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
     );
-  };
-
-  const handleFullPaymentConfirmation = async () => {
-    if (!fullPaymentCourse || !user) {
-      toast.error('Unable to process payment');
-      return;
-    }
-
-    // Check balance
-    if (balance < fullPaymentCourse.total_tuition) {
-      setShowFullPaymentConfirmModal(false);
-      setShowInsufficientFundsModal(true);
-      return;
-    }
-
-    try {
-      // Call backend to process full payment
-      const response = await enrollmentService.processFullPayment(
-        fullPaymentCourse.course_id, 
-        fullPaymentCourse.total_tuition
-      );
-
-      // Deduct from wallet
-      deductBalance(user.id, fullPaymentCourse.total_tuition);
-
-      // Add transaction
-      addTransaction({
-        id: `TRX-${Date.now()}`,
-        type: 'debit',
-        amount: fullPaymentCourse.total_tuition,
-        description: `Full tuition payment for ${fullPaymentCourse.course_title}`,
-        date: new Date().toISOString()
-      });
-
-      // Update local state
-      const updatedEnrollments = enrolledCourses.map(course => 
-        course.enrollment_id === fullPaymentCourse.enrollment_id
-          ? { 
-              ...course, 
-              payment_status: 'fully_paid',
-              paid_amount: fullPaymentCourse.total_tuition
-            }
-          : course
-      );
-
-      setEnrolledCourses(updatedEnrollments);
-
-      // Close modals and show success
-      setShowFullPaymentConfirmModal(false);
-      toast.success('Tuition paid successfully!');
-    } catch (error) {
-      console.error('Payment processing error:', error);
-      toast.error('Failed to process payment');
-    }
   };
 
   return (
@@ -709,18 +783,17 @@ export default function MyCourses() {
 
       <InsufficientFundsModal
         open={showInsufficientFundsModal}
-        onClose={() => setShowInsufficientFundsModal(false)}
-        onFundWallet={handleFundWallet}
+        onOpenChange={setShowInsufficientFundsModal}
+        balance={balance}
         requiredAmount={selectedCourse?.total_tuition || 0}
-        currentBalance={balance}
-        type="tuition"
+        onFundWallet={handleFundWallet}
       />
 
       <FullPaymentConfirmModal 
         open={showFullPaymentConfirmModal}
         onOpenChange={setShowFullPaymentConfirmModal}
         course={fullPaymentCourse}
-        onConfirm={handleFullPaymentConfirmation}
+        onConfirm={handleFullPaymentConfirm}
       />
     </div>
   );
