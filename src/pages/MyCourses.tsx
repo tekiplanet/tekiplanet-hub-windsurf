@@ -33,6 +33,11 @@ import { InsufficientFundsModal } from "@/components/wallet/InsufficientFundsMod
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { enrollmentService } from '@/services/enrollmentService';
+import Dashboard from '@/pages/Dashboard';
+import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface EnrolledCourse {
   courseId: string;
@@ -126,6 +131,7 @@ export default function MyCourses() {
     deductBalance, 
     addTransaction 
   } = useWalletStore();
+  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -140,24 +146,41 @@ export default function MyCourses() {
   const balance = getBalance(user?.id || '');
 
   // Get enrolled courses with details
-  const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>(() => {
-    try {
-      const storedEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-      return storedEnrollments
-        .filter((enrollment: any) => enrollment.userId === user?.id)
-        .map((enrollment: any) => ({
-          ...enrollment,
-          course: mockCourses.find(c => c.id === enrollment.courseId),
-          progress: enrollment.progress || 0,
-          lastAccessed: enrollment.lastAccessed || new Date().toISOString(),
-          nextLesson: enrollment.nextLesson || "Introduction",
-          nextDeadline: enrollment.nextDeadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        }));
-    } catch (error) {
-      console.error('Error loading enrollments:', error);
-      return [];
-    }
+  const { data: enrolledCourses = [], isLoading, error } = useQuery({
+    queryKey: ['enrolledCourses', user?.id],
+    queryFn: () => {
+      console.log('Fetching enrolled courses in MyCourses component');
+      return enrollmentService.getUserEnrolledCourses();
+    },
+    enabled: !!user?.id,
+    initialData: []
   });
+
+  useEffect(() => {
+    console.log('Enrolled Courses in MyCourses:', enrolledCourses);
+    console.log('Is Loading:', isLoading);
+    console.log('Error:', error);
+  }, [enrolledCourses, isLoading, error]);
+
+  if (isLoading) {
+    return (
+      <Dashboard>
+        <div className="flex justify-center items-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </Dashboard>
+    );
+  }
+
+  if (error) {
+    toast.error('Failed to load enrolled courses');
+    return (
+      <div className="flex justify-center items-center h-full text-red-500">
+        <AlertCircle className="h-8 w-8 mr-2" /> 
+        Unable to load courses
+      </div>
+    );
+  }
 
   // Filter and sort courses
   const filteredCourses = enrolledCourses
@@ -250,22 +273,8 @@ export default function MyCourses() {
           : course
       );
 
-      // Update localStorage
-      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-        course.courseId === processingCourse.courseId && course.userId === user.id
-          ? { 
-              ...course, 
-              paymentPlan: 'full' as const,
-              tuitionPaid: true,
-              dueDate: dueDate,
-              amount: fullAmount
-            }
-          : course
-      );
-      
-      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-      setEnrolledCourses(updatedEnrollments);
+      // Update query cache
+      queryClient.setQueryData(['enrolledCourses', user?.id], updatedEnrollments);
       
       toast.success("Full tuition payment processed successfully!");
     } else {
@@ -299,39 +308,8 @@ export default function MyCourses() {
           : course
       );
 
-      // Update localStorage
-      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-        course.courseId === processingCourse.courseId && course.userId === user.id
-          ? { 
-              ...course, 
-              paymentPlan: 'installment' as const,
-              tuitionFee: fullAmount, // Store full amount
-              tuitionPaid: false,
-              installments: [
-                {
-                  number: 1 as const,
-                  amount: installmentAmount,
-                  dueDate: new Date().toISOString(),
-                  paid: false,
-                  paidDate: null,
-                  overdue: false
-                },
-                {
-                  number: 2 as const,
-                  amount: installmentAmount,
-                  dueDate: dueDate,
-                  paid: false,
-                  paidDate: null,
-                  overdue: false
-                }
-              ]
-            }
-          : course
-      );
-      
-      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-      setEnrolledCourses(updatedEnrollments);
+      // Update query cache
+      queryClient.setQueryData(['enrolledCourses', user?.id], updatedEnrollments);
       
       toast.success("Installment plan set up successfully!");
     }
@@ -390,19 +368,8 @@ export default function MyCourses() {
         : course
     );
 
-    // Update localStorage
-    const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-    const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-      course.courseId === enrollment.courseId && course.userId === user.id
-        ? { 
-            ...course, 
-            installments: updatedInstallments,
-            tuitionPaid: allPaid
-          }
-        : course
-    );
-    localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-    setEnrolledCourses(updatedEnrollments);
+    // Update query cache
+    queryClient.setQueryData(['enrolledCourses', user?.id], updatedEnrollments);
 
     toast.success(`Installment ${installmentNumber} paid successfully!`);
   };
@@ -579,12 +546,8 @@ export default function MyCourses() {
                 <div className="flex gap-2 pt-4 border-t">
                   <Button 
                     className="flex-1 text-white"
-                    onClick={() => navigate(`/dashboard/academy/${enrollment.courseId}/manage`)}
-                  >
-                    <>
-                      Manage Course
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
+                    onClick={() => navigate(`/dashboard/academy/${enrollment.courseId}/manage`)}>
+                    <><GraduationCap className="mr-2 h-4 w-4" /> Manage Course</>
                   </Button>
                 </div>
               </div>
@@ -634,4 +597,4 @@ export default function MyCourses() {
       />
     </div>
   );
-} 
+}

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\EnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class EnrollmentController extends Controller
 {
@@ -46,6 +47,34 @@ class EnrollmentController extends Controller
     {
         $user = Auth::user();
         $enrollments = $user->enrollments()->with('course')->get();
+
+        return response()->json([
+            'success' => true,
+            'enrollments' => $enrollments
+        ]);
+    }
+
+    public function getUserEnrolledCourses()
+    {
+        $user = Auth::user();
+        Log::info('Fetching enrolled courses for user', [
+            'user_id' => $user->id,
+            'username' => $user->username
+        ]);
+
+        $enrollments = $user->enrollments()->with('course')->get();
+
+        Log::info('Enrollment query results', [
+            'total_enrollments' => $enrollments->count(),
+            'enrollment_details' => $enrollments->map(function($enrollment) {
+                return [
+                    'enrollment_id' => $enrollment->id,
+                    'course_id' => $enrollment->course_id,
+                    'course_title' => optional($enrollment->course)->title,
+                    'status' => $enrollment->status
+                ];
+            })
+        ]);
 
         return response()->json([
             'success' => true,

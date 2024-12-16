@@ -79,6 +79,14 @@ class User extends Authenticatable
      */
     public static $accountTypeOptions = ['student', 'business', 'professional'];
 
+    /**
+     * Get the enrollments for the user.
+     */
+    public function enrollments()
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
     protected static function boot()
     {
         parent::boot();

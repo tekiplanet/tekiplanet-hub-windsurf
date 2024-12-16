@@ -57,7 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('enrollments')->group(function () {
         Route::post('/enroll', [EnrollmentController::class, 'enroll']);
         Route::get('/', [EnrollmentController::class, 'getUserEnrollments']);
+        Route::get('/courses', [EnrollmentController::class, 'getUserEnrolledCourses']);
     });
+    Route::get('/courses/enrolled', [EnrollmentController::class, 'getUserEnrolledCourses']);
 });
 
 // Course Routes
