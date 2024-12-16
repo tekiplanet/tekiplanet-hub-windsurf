@@ -24,6 +24,7 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [nextClass, setNextClass] = useState<ClassSession | null>(null);
   const [classDates, setClassDates] = useState<Date[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState<Date | undefined>();
 
   useEffect(() => {
     const fetchCourseSchedule = async () => {
@@ -132,6 +133,8 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
         // Set selected date to the next class date if available
         if (upcomingClass) {
           setSelectedDate(upcomingClass.date);
+          // Set the calendar month to the month of the next class
+          setCalendarMonth(upcomingClass.date);
         }
       } catch (error) {
         console.error("Error fetching course schedule:", error);
@@ -151,16 +154,39 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
     );
   };
 
+  // Function to check if a date is the next class date
+  const isNextClassDate = (day: Date) => {
+    return nextClass && day.toDateString() === nextClass.date.toDateString();
+  };
+
+  // Function to check if a date is a past class date
+  const isPastClassDate = (day: Date) => {
+    return classDates.some(classDate => 
+      classDate.toDateString() === day.toDateString() && classDate < new Date()
+    );
+  };
+
   // Prepare calendar modifiers
   const calendarModifiers = {
-    hasClass: isDayWithClass
+    hasClass: isDayWithClass,
+    nextClass: isNextClassDate,
+    pastClass: isPastClassDate
   };
 
   const calendarModifiersStyles = {
     hasClass: {
+      backgroundColor: "rgba(var(--primary-rgb), 0.1)",
+      color: "hsl(var(--primary))"
+    },
+    nextClass: {
       backgroundColor: "hsl(var(--primary))",
       color: "white",
-      borderRadius: "50%"
+      borderRadius: "50%",
+      fontWeight: "bold"
+    },
+    pastClass: {
+      color: "hsl(var(--muted-foreground))",
+      opacity: 0.5
     }
   };
 
@@ -216,6 +242,8 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
             <Calendar
               mode="single"
               selected={selectedDate}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
               onSelect={setSelectedDate}
               modifiers={calendarModifiers}
               modifiersStyles={calendarModifiersStyles}
