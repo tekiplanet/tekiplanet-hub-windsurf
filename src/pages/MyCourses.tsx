@@ -148,28 +148,62 @@ export default function MyCourses() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchEnrolledCourses = async () => {
+    // Ensure authentication is initialized before fetching courses
+    const initializeAndFetchCourses = async () => {
       try {
-        setIsLoading(true);
-        console.log('Fetching enrolled courses with user:', user);
-        const courses = await enrollmentService.getUserEnrolledCourses();
-        console.log('Fetched courses:', JSON.stringify(courses, null, 2));
-        setEnrolledCourses(courses);
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Failed to fetch enrolled courses:', err);
-        setError('Failed to load courses');
-        setIsLoading(false);
-        toast.error('Unable to load your courses');
+        // First, attempt to initialize authentication
+        const initializedUser = await useAuthStore.getState().initialize();
+        console.log('Initialization result:', {
+          initializedUser,
+          token: localStorage.getItem('token'),
+          isAuthenticated: useAuthStore.getState().isAuthenticated
+        });
+
+        // Only fetch courses if initialization is successful
+        if (initializedUser) {
+          await fetchEnrolledCourses();
+        } else {
+          console.warn('Authentication initialization failed');
+          toast.error('Please log in to view your courses');
+        }
+      } catch (error) {
+        console.error('Initialization or course fetch failed:', error);
+        toast.error('Failed to load courses. Please try logging in again.');
       }
     };
 
-    if (user?.id) {
-      fetchEnrolledCourses();
-    } else {
-      console.warn('No user ID found, cannot fetch courses');
+    initializeAndFetchCourses();
+  }, []);
+
+  const fetchEnrolledCourses = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Fetching enrolled courses with user:', user);
+      console.log('User details:', {
+        id: user?.id,
+        username: user?.username,
+        email: user?.email,
+        token: localStorage.getItem('token'), // Debug token
+      });
+      const courses = await enrollmentService.getUserEnrolledCourses();
+      console.log('Fetched courses:', JSON.stringify(courses, null, 2));
+      setEnrolledCourses(courses);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch enrolled courses:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response ? {
+          status: err.response.status,
+          data: err.response.data,
+          headers: err.response.headers
+        } : 'No response',
+      });
+      setError('Failed to load courses');
+      setIsLoading(false);
+      toast.error('Unable to load your courses');
     }
-  }, [user?.id]);
+  };
 
   useEffect(() => {
     // Set balance from user's wallet balance
@@ -701,11 +735,11 @@ export default function MyCourses() {
                                     <p className="text-sm">Installment {index + 1}</p>
                                     <p className="text-xs text-muted-foreground">
                                       Due: {new Date(installment.due_date).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
+                                              weekday: 'long', 
+                                              year: 'numeric', 
+                                              month: 'long', 
+                                              day: 'numeric' 
+                                            })}
                                     </p>
                                   </div>
                                   <Badge 

@@ -7,6 +7,8 @@ import { Calendar, Clock, Bell, GraduationCap, FileText, BookOpen, Wallet } from
 import { formatCurrency } from "@/lib/utils";
 import { useAuthStore } from '@/store/useAuthStore';
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import courseManagementService from '@/services/courseManagementService';
 
 // Components for each tab
 import PaymentInfo from '@/components/course-management/PaymentInfo';
@@ -17,25 +19,53 @@ import CourseContent from '@/components/course-management/CourseContent';
 
 // Import the mockCourses data
 import { Course, mockCourses } from "@/data/mockCourses";
+import enrollmentService from '@/services/enrollmentService';
 
 const CourseManagement = () => {
   const { courseId } = useParams();
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
 
-  // Get enrollment details including payment status
-  const enrollment = React.useMemo(() => {
-    const enrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-    return enrollments.find(
-      (e: any) => e.courseId === courseId && e.userId === user?.id
-    );
-  }, [courseId, user?.id]);
+  const [courseDetails, setCourseDetails] = React.useState<{
+    course: any;
+    modules: any[];
+    lessons: any[];
+    exams: any[];
+    schedules: any[];
+    notices: any[];
+    features: any[];
+    instructor: any;
+    enrollment: any;
+    installments: any[];
+  } | null>(null);
 
-  // Get course details from mockCourses
-  const course = React.useMemo(() => {
-    return mockCourses.find(c => c.id === courseId);
+  React.useEffect(() => {
+    const fetchCourseDetails = async () => {
+      if (courseId) {
+        try {
+          const details = await courseManagementService.getCourseDetails(courseId);
+          setCourseDetails(details);
+          console.log('Fetched course details:', details);
+        } catch (error) {
+          console.error('Error fetching course details:', error);
+          toast.error('Failed to load course details');
+        }
+      }
+    };
+
+    fetchCourseDetails();
   }, [courseId]);
 
+  // Update the existing course and enrollment logic
+  const course = React.useMemo(() => {
+    return courseDetails?.course || null;
+  }, [courseDetails]);
+
+  const enrollment = React.useMemo(() => {
+    return courseDetails?.enrollment || null;
+  }, [courseDetails]);
+
+  // If no course or enrollment found, keep existing not found logic
   if (!course || !enrollment) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -172,4 +202,4 @@ const CourseManagement = () => {
   );
 };
 
-export default CourseManagement; 
+export default CourseManagement;

@@ -163,6 +163,29 @@ export const enrollmentService = {
     }
   },
 
+  async getCourseDetails(courseId: string) {
+    try {
+      const response = await apiClient.get(`/courses/${courseId}/details`);
+      
+      // Detailed course information with related models
+      return {
+        course: response.data.course,
+        modules: response.data.modules || [],
+        lessons: response.data.lessons || [],
+        exams: response.data.exams || [],
+        schedules: response.data.schedules || [],
+        notices: response.data.notices || [],
+        features: response.data.features || [],
+        instructor: response.data.instructor || null,
+        enrollment: response.data.enrollment || null,
+        installments: response.data.installments || []
+      };
+    } catch (error) {
+      console.error('Failed to fetch course details:', error);
+      throw error;
+    }
+  },
+
   async processFullPayment(courseId: string, amount: number) {
     try {
       const response = await apiClient.post('/enrollments/full-payment', {

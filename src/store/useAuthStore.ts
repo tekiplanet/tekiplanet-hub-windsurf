@@ -43,7 +43,7 @@ type AuthState = {
   initialize: () => Promise<UserData | null>;
 };
 
-const useAuthStore = create<AuthState>()(
+const useAuthStore = create<AuthState>(
   persist(
     (set, get) => ({
       user: null,
@@ -63,8 +63,14 @@ const useAuthStore = create<AuthState>()(
         const token = localStorage.getItem('token');
         const storedTheme = localStorage.getItem('theme') as 'light' | 'dark';
         
+        // Explicitly reset authentication if no token
         if (!token) {
-          console.log('❌ No token found. Skipping initialization.');
+          console.log('❌ No token found. Resetting authentication.');
+          set({ 
+            user: null, 
+            token: null, 
+            isAuthenticated: false 
+          });
           console.groupEnd();
           return null;
         }
@@ -97,7 +103,7 @@ const useAuthStore = create<AuthState>()(
               }
             },
             token,
-            isAuthenticated: true,
+            isAuthenticated: !!token, // Explicitly tie authentication to token
             theme: theme
           });
 
