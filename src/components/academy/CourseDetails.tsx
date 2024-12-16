@@ -23,7 +23,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { Course } from "@/data/mockCourses";
-import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface EnrollmentResponse {
   success: boolean;
@@ -533,29 +533,32 @@ export default function CourseDetails() {
         </div>
 
         {showConfirmEnrollmentModal && (
-          <ConfirmationModal
-            open={showConfirmEnrollmentModal}
-            onClose={() => setShowConfirmEnrollmentModal(false)}
-            onConfirm={handleConfirmEnrollment}
-            title="Confirm Enrollment"
-            description={`Are you sure you want to enroll in ${course.title}? An enrollment fee of ${formatCurrency(ENROLLMENT_FEE, DEFAULT_CURRENCY)} will be deducted from your wallet.`}
-          >
-            <ConfirmationModal.Footer>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowConfirmEnrollmentModal(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleConfirmEnrollment} 
-                disabled={loading}
-              >
-                {loading ? 'Enrolling...' : 'Confirm Enrollment'}
-              </Button>
-            </ConfirmationModal.Footer>
-          </ConfirmationModal>
+          <Dialog open={showConfirmEnrollmentModal} onOpenChange={setShowConfirmEnrollmentModal}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Enrollment</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to enroll in {course.title}? 
+                  An enrollment fee of {formatCurrency(ENROLLMENT_FEE, DEFAULT_CURRENCY)} will be deducted from your wallet.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowConfirmEnrollmentModal(false)}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleConfirmEnrollment} 
+                  disabled={loading}
+                >
+                  {loading ? 'Enrolling...' : 'Confirm Enrollment'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
         <InsufficientFundsModal
           open={showInsufficientFundsModal}
