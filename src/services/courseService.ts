@@ -15,9 +15,9 @@ class CourseService {
 
   async getCourseDetails(courseId: string) {
     try {
-      const courseResponse = await apiClient.get(`/api/courses/${courseId}`);
-      const featuresResponse = await apiClient.get(`/api/courses/${courseId}/features`);
-      const curriculumResponse = await apiClient.get(`/api/courses/${courseId}/curriculum`);
+      const courseResponse = await apiClient.get(`/courses/${courseId}`);
+      const featuresResponse = await apiClient.get(`/courses/${courseId}/features`);
+      const curriculumResponse = await apiClient.get(`/courses/${courseId}/curriculum`);
       
       // Get current user ID from auth store
       const userId = useAuthStore.getState().user?.id;

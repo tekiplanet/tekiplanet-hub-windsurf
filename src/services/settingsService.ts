@@ -16,7 +16,7 @@ class SettingsService {
 
   async fetchSettings(): Promise<Settings> {
     try {
-      const response = await apiClient.get('/api/settings');
+      const response = await apiClient.get('/settings');
       this.settings = response.data;
       return this.settings;
     } catch (error) {

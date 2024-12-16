@@ -40,7 +40,7 @@ interface Settings {
 
 const fetchCourses = async (): Promise<Course[]> => {
   try {
-    const response = await apiClient.get('/api/courses');
+    const response = await apiClient.get('/courses');
     return response.data.courses || [];
   } catch (error) {
     console.error("Failed to fetch courses", error);
@@ -50,7 +50,7 @@ const fetchCourses = async (): Promise<Course[]> => {
 
 const fetchSettings = async (): Promise<Settings> => {
   try {
-    const response = await apiClient.get('/api/settings');
+    const response = await apiClient.get('/settings');
     return response.data;
   } catch (error) {
     console.error("Failed to fetch settings", error);
