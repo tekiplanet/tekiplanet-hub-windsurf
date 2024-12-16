@@ -23,6 +23,7 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [nextClass, setNextClass] = useState<ClassSession | null>(null);
+  const [classDates, setClassDates] = useState<Date[]>([]);
 
   useEffect(() => {
     const fetchCourseSchedule = async () => {
@@ -42,6 +43,7 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
         
         // Flexible schedule transformation
         const transformedSchedules: ClassSession[] = [];
+        const allClassDates: Date[] = []; // To store all class dates for calendar
 
         // Check different possible schedule sources
         const scheduleSources = [
@@ -98,6 +100,9 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
                   };
 
                   transformedSchedules.push(session);
+                  
+                  // Store the date for calendar highlighting
+                  allClassDates.push(new Date(sessionDate));
                 }
 
                 // Move to next day
@@ -121,6 +126,9 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
         // Only set the next upcoming class as the schedule
         setSchedules(upcomingClass ? [upcomingClass] : []);
         
+        // Set all class dates for calendar highlighting
+        setClassDates(allClassDates);
+        
         // Set selected date to the next class date if available
         if (upcomingClass) {
           setSelectedDate(upcomingClass.date);
@@ -137,7 +145,6 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
   }, [courseId]);
 
   // Function to check if a date has classes
-  const classDates = schedules.map(session => session.date);
   const isDayWithClass = (day: Date) => {
     return classDates.some(classDate => 
       classDate.toDateString() === day.toDateString()
