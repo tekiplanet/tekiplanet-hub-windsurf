@@ -132,8 +132,10 @@ export const enrollmentService = {
                 day: 'numeric' 
               })}` 
             : 'No upcoming classes',
-          nextDeadline: enrollment.next_payment_deadline
-            ? `Payment due on ${new Date(enrollment.next_payment_deadline).toLocaleDateString('en-US', { 
+          nextDeadline: enrollment.payment_status === 'fully_paid'
+            ? 'No upcoming payment deadlines'
+            : enrollment.next_payment_deadline
+            ? `${new Date(enrollment.next_payment_deadline).toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
                 month: 'long', 

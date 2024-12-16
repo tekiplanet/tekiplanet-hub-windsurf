@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class EnrollmentController extends Controller
 {
@@ -95,11 +96,25 @@ class EnrollmentController extends Controller
                 ->orderBy('start_date', 'asc')
                 ->first();
 
-            // Find the next upcoming payment deadline
-            $nextPaymentDeadline = $installments
-                ->where('status', '!=', 'paid')
-                ->sortBy('due_date')
-                ->first();
+            // Determine next payment deadline logic
+            $nextPaymentDeadline = null;
+            
+            // If payment status is fully paid, no upcoming deadlines
+            if ($paymentStatus === 'fully_paid') {
+                $nextPaymentDeadline = null;
+            } 
+            // If there are unpaid installments, use the earliest unpaid installment's due date
+            elseif ($installments->where('status', '!=', 'paid')->count() > 0) {
+                $nextPaymentDeadline = $installments
+                    ->where('status', '!=', 'paid')
+                    ->sortBy('due_date')
+                    ->first()->due_date;
+            } 
+            // If no installments paid, use one month after enrollment date
+            else {
+                $enrolledAt = $enrollment->enrolled_at ?? $enrollment->created_at;
+                $nextPaymentDeadline = Carbon::parse($enrolledAt)->addMonth()->toDateString();
+            }
 
             return [
                 'enrollment_id' => $enrollment->id,
@@ -121,7 +136,7 @@ class EnrollmentController extends Controller
                 'paid_amount' => $paidAmount,
                 'progress' => $enrollment->progress ?? 0,
                 'next_course_schedule' => $nextCourseSchedule ? $nextCourseSchedule->start_date : null,
-                'next_payment_deadline' => $nextPaymentDeadline ? $nextPaymentDeadline->due_date : null,
+                'next_payment_deadline' => $nextPaymentDeadline,
                 'installments' => $installments->map(function($installment) {
                     return [
                         'id' => $installment->id,
