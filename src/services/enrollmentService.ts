@@ -171,4 +171,46 @@ export const enrollmentService = {
       throw error;
     }
   },
+
+  async processInstallmentPayment(
+    courseId: string, 
+    installmentId: string,
+    amount: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    installment: {
+      id: string;
+      amount: number;
+      due_date: string;
+      status: 'pending' | 'paid' | 'overdue';
+      paid_at: string | null;
+    }
+  }> {
+    return apiClient.post('/enrollments/specific-installment-payment', {
+      course_id: courseId,
+      installment_id: installmentId,
+      amount: amount
+    });
+  },
+
+  async processInitialInstallmentPlan(
+    courseId: string, 
+    amount: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    installments: {
+      id: string;
+      amount: number;
+      due_date: string;
+      status: 'pending' | 'paid' | 'overdue';
+      paid_at: string | null;
+    }[]
+  }> {
+    return apiClient.post('/enrollments/installment-payment', {
+      course_id: courseId,
+      amount: amount
+    });
+  }
 };

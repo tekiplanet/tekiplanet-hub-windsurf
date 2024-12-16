@@ -58,8 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/enroll', [EnrollmentController::class, 'enroll']);
         Route::get('/', [EnrollmentController::class, 'getUserEnrollments']);
         Route::get('/courses', [EnrollmentController::class, 'getUserEnrolledCourses']);
-        Route::post('/full-payment', [EnrollmentController::class, 'processFullPayment']);
+        Route::post('/full-payment', [EnrollmentController::class, 'processFullTuitionPayment']);
         Route::post('/full-tuition-payment', [EnrollmentController::class, 'processFullTuitionPayment']);
+        Route::post('/full-payment', [EnrollmentController::class, 'processFullTuitionPayment']);
+        Route::post('/installment-payment', [EnrollmentController::class, 'processInstallmentPayment']);
+        Route::post('/specific-installment-payment', [EnrollmentController::class, 'processSpecificInstallmentPayment']);
     });
     Route::get('/courses/enrolled', [EnrollmentController::class, 'getUserEnrolledCourses']);
 });

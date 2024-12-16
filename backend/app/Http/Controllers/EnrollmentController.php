@@ -288,6 +288,225 @@ class EnrollmentController extends Controller
         }
     }
 
+    public function processInstallmentPayment(Request $request)
+    {
+        // Validate the request
+        $validated = $request->validate([
+            'course_id' => 'required|exists:courses,id',
+            'amount' => 'required|numeric|min:0'
+        ]);
+
+        // Get the authenticated user
+        $user = Auth::user();
+
+        // Find the course
+        $course = Course::findOrFail($validated['course_id']);
+
+        // Validate amount is half of the course price
+        $halfPrice = $course->price / 2;
+        if (abs($halfPrice - $validated['amount']) > 0.01) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid installment amount'
+            ], 400);
+        }
+
+        // Start database transaction
+        DB::beginTransaction();
+
+        try {
+            // Deduct balance from user's wallet
+            $user->wallet_balance -= $validated['amount'];
+            $user->save();
+
+            // Find or create enrollment
+            $enrollment = Enrollment::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'course_id' => $course->id
+                ],
+                [
+                    'status' => 'active',
+                    'progress' => 0,
+                    'enrolled_at' => now()
+                ]
+            );
+
+            // Create first installment (pending)
+            $firstInstallment = Installment::create([
+                'enrollment_id' => $enrollment->id,
+                'user_id' => $user->id,
+                'amount' => $halfPrice,
+                'due_date' => now()->addWeeks(1),
+                'status' => 'pending',
+                'paid_at' => null
+            ]);
+
+            // Create second installment (pending)
+            $secondInstallment = Installment::create([
+                'enrollment_id' => $enrollment->id,
+                'user_id' => $user->id,
+                'amount' => $halfPrice,
+                'due_date' => now()->addMonths(1),
+                'status' => 'pending',
+                'paid_at' => null
+            ]);
+
+            // Commit transaction
+            DB::commit();
+
+            // Log the transaction
+            Log::info('Installment payment processed', [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'first_installment_amount' => $halfPrice,
+                'first_installment_id' => $firstInstallment->id,
+                'second_installment_id' => $secondInstallment->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'First installment payment processed successfully',
+                'installments' => [
+                    [
+                        'id' => $firstInstallment->id,
+                        'amount' => $firstInstallment->amount,
+                        'due_date' => $firstInstallment->due_date,
+                        'status' => $firstInstallment->status,
+                        'paid_at' => $firstInstallment->paid_at,
+                    ],
+                    [
+                        'id' => $secondInstallment->id,
+                        'amount' => $secondInstallment->amount,
+                        'due_date' => $secondInstallment->due_date,
+                        'status' => $secondInstallment->status,
+                        'paid_at' => $secondInstallment->paid_at,
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            // Rollback transaction
+            DB::rollBack();
+
+            // Log error
+            Log::error('Installment payment processing failed', [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process installment payment'
+            ], 500);
+        }
+    }
+
+    public function processSpecificInstallmentPayment(Request $request)
+    {
+        // Validate the request
+        $validated = $request->validate([
+            'course_id' => 'required|exists:courses,id',
+            'installment_id' => 'required|exists:installments,id',
+            'amount' => 'required|numeric|min:0'
+        ]);
+
+        // Get the authenticated user
+        $user = Auth::user();
+
+        // Find the course
+        $course = Course::findOrFail($validated['course_id']);
+
+        // Find the specific installment
+        $installment = Installment::findOrFail($validated['installment_id']);
+
+        // Validate the installment belongs to the user and course
+        if ($installment->user_id !== $user->id || $installment->enrollment->course_id !== $course->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid installment'
+            ], 400);
+        }
+
+        // Validate amount matches installment amount
+        if (abs($installment->amount - $validated['amount']) > 0.01) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid payment amount'
+            ], 400);
+        }
+
+        // Check if installment is already paid
+        if ($installment->status === 'paid') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Installment already paid'
+            ], 400);
+        }
+
+        // Start database transaction
+        DB::beginTransaction();
+
+        try {
+            // Deduct balance from user's wallet
+            $user->wallet_balance -= $validated['amount'];
+            $user->save();
+
+            // Update installment status
+            $installment->status = 'paid';
+            $installment->paid_at = now();
+            $installment->save();
+
+            // Check if all installments are paid
+            $enrollment = $installment->enrollment;
+            $allInstallmentsPaid = $enrollment->installments()->where('status', '!=', 'paid')->count() === 0;
+
+            // Update enrollment status if all installments are paid
+            if ($allInstallmentsPaid) {
+                $enrollment->status = 'fully_paid';
+                $enrollment->save();
+            }
+
+            // Commit transaction
+            DB::commit();
+
+            // Log the transaction
+            Log::info('Installment payment processed', [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'installment_id' => $installment->id,
+                'amount' => $validated['amount']
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Installment payment processed successfully',
+                'installment' => [
+                    'id' => $installment->id,
+                    'amount' => $installment->amount,
+                    'due_date' => $installment->due_date,
+                    'status' => $installment->status,
+                    'paid_at' => $installment->paid_at,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            // Rollback transaction
+            DB::rollBack();
+
+            // Log error
+            Log::error('Installment payment processing failed', [
+                'user_id' => $user->id,
+                'course_id' => $course->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process installment payment'
+            ], 500);
+        }
+    }
+
     // Helper method to calculate overall payment status
     private function calculateOverallPaymentStatus($installments)
     {

@@ -41,7 +41,7 @@ interface EnrolledCourse {
   course_title: string;
   course_image: string;
   enrollment_status: string;
-  payment_status: 'not_started' | 'partially_paid' | 'fully_paid' | 'overdue';
+  payment_status: 'not_started' | 'partially_paid' | 'fully_paid' | 'overdue' | 'pending_installments';
   total_tuition: number;
   paid_amount: number;
   progress: number;
@@ -293,83 +293,163 @@ export default function MyCourses() {
     if (selectedPaymentPlan === 'full') {
       setFullPaymentCourse(processingCourse);
       setShowFullPaymentConfirmModal(true);
-    } else {
-      // If installment is selected, handle installment logic
-      // You can add installment-specific logic here
-      toast.info('Installment payment flow to be implemented');
-    }
+    } else if (selectedPaymentPlan === 'installment') {
+      // For installment plan, calculate the first installment amount (50% of total)
+      if (!processingCourse) return;
+      
+      const installmentAmount = Number(processingCourse.total_tuition) / 2;
+      
+      // Proceed with creating installment plan
+      setIsProcessingPayment(true);
+      
+      enrollmentService.processInitialInstallmentPlan(
+        processingCourse.course_id, 
+        installmentAmount
+      )
+      .then(response => {
+        // Update local state to reflect installment payment
+        const updatedEnrollments = enrolledCourses.map(course => 
+          course.enrollment_id === processingCourse.enrollment_id
+            ? { 
+                ...course, 
+                payment_status: 'pending_installments',
+                paid_amount: 0,
+                installments: response.installments.map((inst, index) => ({
+                  ...inst,
+                  number: index + 1,
+                  paid: false,
+                  overdue: false
+                }))
+              }
+            : course
+        );
 
-    // Reset state
-    setSelectedPaymentPlan(null);
+        // Update localStorage
+        const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+        const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+          course.enrollment_id === processingCourse.enrollment_id
+            ? { 
+                ...course, 
+                payment_status: 'pending_installments',
+                paid_amount: 0,
+                installments: response.installments.map((inst, index) => ({
+                  ...inst,
+                  number: index + 1,
+                  paid: false,
+                  overdue: false
+                }))
+              }
+            : course
+        );
+        
+        localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+        setEnrolledCourses(updatedEnrollments);
+        
+        toast.success("Installment plan created successfully!");
+      })
+      .catch(error => {
+        console.error('Installment plan creation error:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to create installment plan');
+      })
+      .finally(() => {
+        // Reset processing state
+        setIsProcessingPayment(false);
+        setProcessingCourse(null);
+        setSelectedPaymentPlan(null);
+      });
+    }
   };
 
   const handleInstallmentPayment = (enrollment: EnrolledCourse, installmentId: string) => {
-    if (!user || !enrollment.installments) return;
+    // Validate that the installment is not already paid
+    const selectedInstallment = enrollment.installments?.find(inst => inst.id === installmentId);
     
-    const installment = enrollment.installments.find(i => i.id === installmentId);
-    if (!installment || installment.status === 'paid') return;
+    if (!selectedInstallment || selectedInstallment.status === 'paid') {
+      toast.error('Invalid installment');
+      return;
+    }
 
-    const installmentAmount = installment.amount;
-
-    if (balance < installmentAmount) {
+    // Check if balance is sufficient
+    if (balance < selectedInstallment.amount) {
       setSelectedCourse({
         ...enrollment,
-        total_tuition: installmentAmount
+        total_tuition: selectedInstallment.amount
       });
+      
+      // Show insufficient funds modal
       setShowInsufficientFundsModal(true);
       return;
     }
 
-    // Process payment
-    deductBalance(user.id, installmentAmount);
+    // Proceed with installment payment
+    setIsProcessingPayment(true);
     
-    // Record transaction
-    addTransaction(user.id, {
-      id: `TRX-${Date.now()}`,
-      type: 'debit',
-      amount: installmentAmount,
-      description: `Installment payment for ${enrollment.course_title}`,
-      date: new Date().toISOString()
+    enrollmentService.processInstallmentPayment(
+      enrollment.course_id, 
+      selectedInstallment.id,
+      selectedInstallment.amount
+    )
+    .then(response => {
+      // Update local state to reflect installment payment
+      const updatedEnrollments = enrolledCourses.map(course => 
+        course.enrollment_id === enrollment.enrollment_id
+          ? { 
+              ...course, 
+              installments: course.installments?.map(inst => 
+                inst.id === installmentId 
+                  ? { 
+                      ...response.installment,
+                      number: inst.number,
+                      paid: response.installment.status === 'paid',
+                      overdue: response.installment.status === 'overdue'
+                    } 
+                  : inst
+              ),
+              // Update payment status if all installments are paid
+              payment_status: course.installments?.every(inst => 
+                inst.id === installmentId || inst.status === 'paid'
+              ) ? 'fully_paid' : 'pending_installments'
+            }
+          : course
+      );
+
+      // Update localStorage
+      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+        course.enrollment_id === enrollment.enrollment_id
+          ? { 
+              ...course, 
+              installments: course.installments?.map(inst => 
+                inst.id === installmentId 
+                  ? { 
+                      ...response.installment,
+                      number: inst.number,
+                      paid: response.installment.status === 'paid',
+                      overdue: response.installment.status === 'overdue'
+                    } 
+                  : inst
+              ),
+              // Update payment status if all installments are paid
+              payment_status: course.installments?.every(inst => 
+                inst.id === installmentId || inst.status === 'paid'
+              ) ? 'fully_paid' : 'pending_installments'
+            }
+          : course
+      );
+      
+      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+      setEnrolledCourses(updatedEnrollments);
+      
+      toast.success("Installment payment processed successfully!");
+    })
+    .catch(error => {
+      console.error('Installment payment processing error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to process installment payment');
+    })
+    .finally(() => {
+      // Reset processing state
+      setIsProcessingPayment(false);
     });
-
-    // Update installment status
-    const updatedInstallments = enrollment.installments.map(i => 
-      i.id === installmentId
-        ? { ...i, status: 'paid', paid_at: new Date().toISOString() }
-        : i
-    );
-
-    // Check if all installments are paid
-    const allPaid = updatedInstallments.every(i => i.status === 'paid');
-
-    // Update enrollment
-    const updatedEnrollments = enrolledCourses.map(course => 
-      course.enrollment_id === enrollment.enrollment_id
-        ? { 
-            ...course, 
-            installments: updatedInstallments,
-            payment_status: allPaid ? 'fully_paid' : 'partially_paid',
-            paid_amount: course.paid_amount + installmentAmount
-          }
-        : course
-    );
-
-    // Update localStorage
-    const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-    const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-      course.enrollment_id === enrollment.enrollment_id
-        ? { 
-            ...course, 
-            installments: updatedInstallments,
-            payment_status: allPaid ? 'fully_paid' : 'partially_paid',
-            paid_amount: course.paid_amount + installmentAmount
-          }
-        : course
-    );
-    localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-    setEnrolledCourses(updatedEnrollments);
-
-    toast.success(`Installment paid successfully!`);
   };
 
   const handleFundWallet = () => {
@@ -710,35 +790,39 @@ export default function MyCourses() {
                       </div>
                       
                       {enrollment.installments && enrollment.installments.length > 0 ? (
-                        enrollment.installments.map((installment) => (
-                          <div key={installment.id} className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="text-sm">Installment {installment.id}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Due: {new Date(installment.due_date).toLocaleDateString()}
-                                </p>
+                        <div className="space-y-3">
+                          {enrollment.installments?.map((installment, index) => (
+                            <div key={installment.id} className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="text-sm">Installment {index + 1}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Due: {new Date(installment.due_date).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <Badge 
+                                  variant={
+                                    installment.status === 'paid' ? "default" : 
+                                    (new Date(installment.due_date) < new Date() && installment.status !== 'paid') ? "destructive" : 
+                                    "secondary"
+                                  }
+                                >
+                                  {installment.status === 'paid' ? "Paid" : 
+                                   (new Date(installment.due_date) < new Date() && installment.status !== 'paid') ? "Overdue" : 
+                                   "Pending"}
+                                </Badge>
                               </div>
-                              <Badge 
-                                variant={
-                                  installment.status === 'paid' ? "default" : 
-                                  installment.status === 'overdue' ? "destructive" : 
-                                  "secondary"
-                                }
-                              >
-                                {installment.status === 'paid' ? "Paid" : installment.status === 'overdue' ? "Overdue" : "Pending"}
-                              </Badge>
+                              {installment.status !== 'paid' && (
+                                <Button 
+                                  className="w-full text-white"
+                                  onClick={() => handleInstallmentPayment(enrollment, installment.id)}
+                                >
+                                  Pay {formatCurrency(installment.amount)}
+                                </Button>
+                              )}
                             </div>
-                            {installment.status !== 'paid' && (
-                              <Button 
-                                className="w-full text-white"
-                                onClick={() => handleInstallmentPayment(enrollment, installment.id)}
-                              >
-                                Pay {formatCurrency(installment.amount)}
-                              </Button>
-                            )}
-                          </div>
-                        ))
+                          ))}
+                        </div>
                       ) : (
                         <Button 
                           className="w-full text-white"

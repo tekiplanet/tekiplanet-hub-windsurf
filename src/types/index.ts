@@ -23,12 +23,14 @@ export interface EnrollmentRequest {
 }
 
 export interface Installment {
-  number: 1 | 2;
+  id: string;
+  number: number;
   amount: number;
   dueDate: string;
+  status: 'pending' | 'paid' | 'overdue';
   paid: boolean;
-  paidDate?: string;
   overdue: boolean;
+  paid_at: string | null;
 }
 
 export interface CourseLesson {
