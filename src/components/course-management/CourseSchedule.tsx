@@ -55,6 +55,9 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
           'Thu': 4, 'Fri': 5, 'Sat': 6
         };
 
+        // Counter to ensure unique keys
+        let sessionCounter = 0;
+
         scheduleSources.forEach(scheduleSource => {
           if (Array.isArray(scheduleSource)) {
             scheduleSource.forEach(schedule => {
@@ -83,7 +86,8 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
                   sessionDate.setHours(startHour, startMinute, 0, 0);
 
                   const session: ClassSession = {
-                    id: `${schedule.id}-${sessionDate.toISOString()}`,
+                    // Ensure unique key by adding an incremental counter
+                    id: `${schedule.id}-${sessionDate.toISOString()}-${sessionCounter++}`,
                     title: `${schedule.course?.title || 'Course Session'} - ${schedule.location || 'Location TBA'}`,
                     type: 'lecture',
                     date: sessionDate,
@@ -109,15 +113,13 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
         // Sort schedules by date
         const sortedSchedules = transformedSchedules.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-        // Log the sorted schedules
-        console.log('Sorted Schedules:', sortedSchedules);
-
         // Find the next upcoming class
         const upcomingClass = sortedSchedules.find(session => session.date > new Date());
         console.log('Next Upcoming Class:', upcomingClass);
         setNextClass(upcomingClass || null);
 
-        setSchedules(sortedSchedules);
+        // Only set the next upcoming class as the schedule
+        setSchedules(upcomingClass ? [upcomingClass] : []);
         
         // Set selected date to the next class date if available
         if (upcomingClass) {
@@ -273,20 +275,14 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
             ))}
 
           {/* No classes for selected date */}
-          {schedules.filter(session => 
-            !selectedDate || 
-            session.date.toDateString() === selectedDate.toDateString()
-          ).length === 0 && (
+          {schedules.length === 0 && (
             <Card>
               <CardContent className="p-8 text-center">
                 <div className="text-muted-foreground">
                   <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="font-medium">No Classes</p>
+                  <p className="font-medium">No Upcoming Classes</p>
                   <p className="text-sm mt-1">
-                    {selectedDate 
-                      ? `No classes scheduled on ${selectedDate.toLocaleDateString()}`
-                      : 'No classes scheduled'
-                    }
+                    Check back later for new class schedules
                   </p>
                 </div>
               </CardContent>
