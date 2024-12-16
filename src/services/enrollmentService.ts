@@ -175,7 +175,8 @@ export const enrollmentService = {
   async processInstallmentPayment(
     courseId: string, 
     installmentId: string,
-    amount: number
+    amount: number,
+    dueDate?: string
   ): Promise<{
     success: boolean;
     message: string;
@@ -187,10 +188,18 @@ export const enrollmentService = {
       paid_at: string | null;
     }
   }> {
+    console.log('Processing Installment Payment', {
+      course_id: courseId,
+      installment_id: installmentId,
+      amount,
+      due_date: dueDate
+    });
+
     return apiClient.post('/enrollments/specific-installment-payment', {
       course_id: courseId,
       installment_id: installmentId,
-      amount: amount
+      amount,
+      due_date: dueDate
     });
   },
 

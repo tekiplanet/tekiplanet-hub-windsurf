@@ -654,7 +654,7 @@ export default function MyCourses() {
                     <div className="space-y-3 pt-2 border-t">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-sm text-muted-foreground">Total Tuition</p>
+                          <p className="text-sm">Total Tuition</p>
                           <p className="text-lg font-bold">{formatCurrency(enrollment.total_tuition)}</p>
                         </div>
                         <Badge variant="destructive">Payment Required</Badge>
@@ -690,18 +690,20 @@ export default function MyCourses() {
                                      "Pending"}
                                   </Badge>
                                 </div>
-                                <Button 
-                                  className="w-full text-white"
-                                  onClick={() => handleInstallmentPayment(enrollment, installment.id)}
-                                  disabled={
-                                    installment.status === 'paid' || 
-                                    !previousInstallmentsPaid
-                                  }
-                                >
-                                  {installment.status === 'paid' 
-                                    ? 'Paid' 
-                                    : `Pay ${formatCurrency(installment.amount)}`}
-                                </Button>
+                                {installment.status !== 'paid' && (
+                                  <Button 
+                                    className="w-full text-white"
+                                    onClick={() => handleInstallmentPayment(enrollment, installment.id)}
+                                    disabled={
+                                      installment.status === 'paid' || 
+                                      !previousInstallmentsPaid
+                                    }
+                                  >
+                                    {installment.status === 'paid' 
+                                      ? 'Paid' 
+                                      : `Pay ${formatCurrency(installment.amount)}`}
+                                  </Button>
+                                )}
                               </div>
                             );
                           })}
@@ -801,10 +803,18 @@ export default function MyCourses() {
             // Proceed with installment payment
             setIsProcessingPayment(true);
             
+            console.log('Installment Payment Parameters:', {
+              courseId: selectedCourse.course_id,
+              installmentId: selectedInstallment.id,
+              amount: selectedInstallment.amount,
+              dueDate: selectedInstallment.due_date
+            });
+
             enrollmentService.processInstallmentPayment(
               selectedCourse.course_id, 
               selectedInstallment.id,
-              selectedInstallment.amount
+              selectedInstallment.amount,
+              selectedInstallment.due_date
             )
             .then(response => {
               console.log('Full server response:', response);
@@ -850,7 +860,7 @@ export default function MyCourses() {
                           : inst
                       ),
                       // Update payment status to fully_paid if all installments are paid
-                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'pending_installments'
+                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'partially_paid'
                     }
                   : course
               );
@@ -872,7 +882,7 @@ export default function MyCourses() {
                           : inst
                       ),
                       // Update payment status to fully_paid if all installments are paid
-                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'pending_installments'
+                      payment_status: allInstallmentsPaid ? 'fully_paid' : 'partially_paid'
                     }
                   : course
               );
@@ -886,8 +896,35 @@ export default function MyCourses() {
               toast.success("Installment payment processed successfully!");
             })
             .catch(error => {
-              console.error('Installment payment processing error:', error);
-              toast.error(error instanceof Error ? error.message : 'Failed to process installment payment');
+              console.error('Full error object:', error);
+              
+              // Log detailed error information
+              if (error.response) {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                console.error('Error response data:', error.response.data);
+                console.error('Error response status:', error.response.status);
+                console.error('Error response headers:', error.response.headers);
+                
+                // Try to extract and display a meaningful error message
+                const errorMessage = 
+                  error.response.data?.message || 
+                  error.response.data?.error || 
+                  'Failed to process installment payment';
+                
+                toast.error(errorMessage);
+              } else if (error.request) {
+                // The request was made but no response was received
+                console.error('No response received:', error.request);
+                toast.error('No response from server. Please check your connection.');
+              } else {
+                // Something happened in setting up the request that triggered an Error
+                console.error('Error setting up request:', error.message);
+                toast.error(error.message || 'An unexpected error occurred');
+              }
+
+              // Reset processing state
+              setIsProcessingPayment(false);
             })
             .finally(() => {
               // Reset processing state

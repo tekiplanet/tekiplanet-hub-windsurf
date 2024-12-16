@@ -463,7 +463,7 @@ class EnrollmentController extends Controller
 
             // Update enrollment status if all installments are paid
             if ($allInstallmentsPaid) {
-                $enrollment->status = 'fully_paid';
+                $enrollment->payment_status = 'fully_paid';
                 $enrollment->save();
             }
 
@@ -742,26 +742,24 @@ class EnrollmentController extends Controller
     // Helper method to calculate overall payment status
     private function calculateOverallPaymentStatus($installments)
     {
-        if ($installments->isEmpty()) {
-            return 'not_started';
+        if (!$installments || $installments->isEmpty()) {
+            return 'pending_installments';
         }
 
-        $totalInstallments = $installments->count();
-        $paidInstallments = $installments->where('status', 'paid')->count();
+        // Check if all installments are paid
+        $allPaid = $installments->every(function ($installment) {
+            return $installment->status === 'paid';
+        });
 
-        if ($paidInstallments == $totalInstallments) {
+        if ($allPaid) {
             return 'fully_paid';
         }
 
-        $overdueInstallments = $installments->filter(function($installment) {
-            return $installment->status !== 'paid' && 
-                   now()->greaterThan($installment->due_date);
-        })->count();
+        // Check if any installment is paid
+        $anyPaid = $installments->contains(function ($installment) {
+            return $installment->status === 'paid';
+        });
 
-        if ($overdueInstallments > 0) {
-            return 'overdue';
-        }
-
-        return 'partially_paid';
+        return $anyPaid ? 'partially_paid' : 'pending_installments';
     }
 }
