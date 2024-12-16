@@ -15,7 +15,11 @@ return new class extends Migration
             $table->string('category');
             $table->string('level');
             $table->decimal('price', 10, 2);
-            $table->string('instructor');
+            $table->uuid('instructor_id')->nullable();
+            $table->foreign('instructor_id')
+                  ->references('id')
+                  ->on('instructors')
+                  ->onDelete('set null');
             $table->text('image_url')->nullable();
             $table->integer('duration_hours')->nullable();
             $table->enum('status', ['draft', 'active', 'archived'])->default('draft');

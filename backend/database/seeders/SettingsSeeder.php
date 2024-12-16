@@ -51,7 +51,10 @@ class SettingsSeeder extends Seeder
             'facebook_pixel_id' => null,
             
             'maintenance_mode' => false,
-            'maintenance_message' => 'We are currently undergoing maintenance. Please check back soon.'
+            'maintenance_message' => 'We are currently undergoing maintenance. Please check back soon.',
+            
+            // Add default enrollment fee
+            'enrollment_fee' => 0.00
         ]);
     }
 }

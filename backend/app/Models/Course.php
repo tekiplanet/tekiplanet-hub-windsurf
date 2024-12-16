@@ -78,6 +78,11 @@ class Course extends Model
         return $this->hasMany(CourseReview::class);
     }
 
+    public function instructor()
+    {
+        return $this->belongsTo(Instructor::class, 'instructor_id');
+    }
+
     public function updateRating()
     {
         $averageRating = $this->reviews()->avg('rating');

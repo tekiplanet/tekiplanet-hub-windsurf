@@ -28,7 +28,8 @@ class CourseService {
         : 0;
 
       return {
-        ...courseResponse.data,
+        ...courseResponse.data.course,
+        instructor: courseResponse.data.instructor,
         features: featuresResponse.data.map((feature: any) => feature.feature),
         curriculum: curriculumResponse.data,
         user: { wallet_balance: walletBalance }

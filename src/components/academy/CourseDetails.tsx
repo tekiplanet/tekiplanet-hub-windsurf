@@ -107,7 +107,6 @@ export default function CourseDetails() {
 
     return (
       <div className="space-y-4">
-        <h3 className="text-2xl font-bold">Course Curriculum</h3>
         <div className="space-y-4">
           {course.curriculum.map((module, moduleIndex) => (
             <div key={module.id} className="border rounded-lg p-4">
@@ -154,6 +153,40 @@ export default function CourseDetails() {
               )}
             </div>
           ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderInstructor = () => {
+    if (!course || !course.instructor) {
+      return (
+        <div className="text-center text-muted-foreground">
+          No instructor information available.
+        </div>
+      );
+    }
+
+    const { first_name, last_name, bio, avatar } = course.instructor;
+    const fullName = `${first_name} ${last_name}`;
+
+    return (
+      <div className="flex flex-col items-center space-y-4 p-6">
+        <Avatar className="w-24 h-24">
+          <AvatarImage 
+            src={avatar || '/default-avatar.png'} 
+            alt={fullName} 
+          />
+          <AvatarFallback>
+            {first_name[0]}{last_name[0]}
+          </AvatarFallback>
+        </Avatar>
+        
+        <div className="text-center">
+          <h3 className="text-xl font-bold">{fullName}</h3>
+          <p className="text-muted-foreground text-sm mt-2">
+            {bio || 'No bio available'}
+          </p>
         </div>
       </div>
     );
@@ -447,34 +480,7 @@ export default function CourseDetails() {
                 </TabsContent>
 
                 <TabsContent value="instructor">
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-16 w-16">
-                          <AvatarImage src={course.tutor?.avatar} />
-                          <AvatarFallback>
-                            {course.tutor?.name?.split(' ').map(n => n[0]).join('') || 'N/A'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="space-y-1">
-                          <h3 className="font-semibold">{course.tutor?.name || 'Unknown Instructor'}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {course.tutor?.title || 'Instructor'}
-                          </p>
-                          <div className="flex gap-4 text-sm">
-                            <div className="flex items-center gap-1">
-                              <Star className="h-4 w-4 text-yellow-400" />
-                              {course.tutor?.rating || 'N/A'} Rating
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <GraduationCap className="h-4 w-4" />
-                              {course.tutor?.students || 0} Students
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderInstructor()}
                 </TabsContent>
               </Tabs>
             </div>

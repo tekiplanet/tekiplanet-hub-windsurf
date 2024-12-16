@@ -16,6 +16,7 @@ use Database\Seeders\CourseTopicsSeeder;
 use Database\Seeders\UserCourseNoticesSeeder;
 use Database\Seeders\UserSeeder;
 use Database\Seeders\CourseFeatureSeeder;
+use Database\Seeders\InstructorSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -26,6 +27,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
+            InstructorSeeder::class,
             CourseSeeder::class,
             CourseFeatureSeeder::class,
             SettingsSeeder::class,

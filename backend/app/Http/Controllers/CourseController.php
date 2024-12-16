@@ -51,10 +51,14 @@ class CourseController extends Controller
             },
             'modules.lessons' => function($query) {
                 $query->orderBy('order');
-            }
+            },
+            'instructor'
         ])->findOrFail($id);
         
-        return response()->json($course);
+        return response()->json([
+            'course' => $course,
+            'instructor' => $course->instructor
+        ]);
     }
 
     /**
