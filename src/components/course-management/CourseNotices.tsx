@@ -1,8 +1,9 @@
+import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, BookOpen, Calendar, FileText, MessageSquare } from "lucide-react";
+import { Bell, BookOpen, Calendar, FileText, MessageSquare, AlertTriangle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { courseNotices } from "@/data/courseNotices";
+import { toast } from 'sonner';
 
 interface Notice {
   id: string;
@@ -14,8 +15,26 @@ interface Notice {
   priority?: 'high' | 'normal';
 }
 
-export default function CourseNotices({ courseId }: { courseId?: string }) {
-  const notices = courseNotices[courseId] || [];
+export default function CourseNotices({ 
+  courseId, 
+  notices, 
+  loading 
+}: { 
+  courseId?: string, 
+  notices: Notice[], 
+  loading: boolean 
+}) {
+  const [showFallbackNotices, setShowFallbackNotices] = React.useState(false);
+
+  React.useEffect(() => {
+    if (loading === false && notices.length === 0) {
+      toast.warning('Could not fetch course notices', {
+        description: 'Showing default notifications',
+        duration: 3000
+      });
+      setShowFallbackNotices(true);
+    }
+  }, [loading, notices]);
 
   const getNoticeIcon = (type: Notice['type']) => {
     switch (type) {
@@ -48,6 +67,45 @@ export default function CourseNotices({ courseId }: { courseId?: string }) {
     }
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-[500px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Determine which notices to show
+  const displayNotices = showFallbackNotices 
+    ? [
+        {
+          id: 'fallback-1',
+          type: 'announcement',
+          title: 'Course Communication Channel',
+          content: 'Please check your email or LMS for important course updates.',
+          date: new Date(),
+          read: false,
+          priority: 'high'
+        }
+      ] 
+    : notices;
+
+  // Empty state
+  if (!displayNotices || displayNotices.length === 0) {
+    return (
+      <div className="flex flex-col justify-center items-center h-[500px] text-center">
+        <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No Notices Available</h3>
+        <p className="text-sm text-muted-foreground">
+          {showFallbackNotices 
+            ? 'Unable to retrieve course notices. Please contact support.' 
+            : 'There are currently no notifications for this course.'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="w-full space-y-4">
@@ -55,20 +113,24 @@ export default function CourseNotices({ courseId }: { courseId?: string }) {
           <div>
             <h2 className="text-lg font-semibold">Course Notifications</h2>
             <p className="text-sm text-muted-foreground">
-              Stay updated with course announcements and updates
+              {showFallbackNotices 
+                ? 'Default notifications - please check other communication channels' 
+                : 'Stay updated with course announcements and updates'}
             </p>
           </div>
           <Badge variant="secondary">
-            {notices.filter(n => !n.read).length} New
+            {displayNotices.filter(n => !n.read).length} New
           </Badge>
         </div>
 
         <ScrollArea className="h-[500px] w-full pr-2">
           <div className="space-y-3">
-            {notices.map((notice) => (
+            {displayNotices.map((notice) => (
               <Card 
                 key={notice.id}
-                className={`relative ${!notice.read ? 'bg-muted/50' : ''}`}
+                className={`relative ${!notice.read ? 'bg-muted/50' : ''} ${
+                  showFallbackNotices ? 'border-yellow-500/50' : ''
+                }`}
               >
                 {!notice.read && (
                   <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-primary" />
@@ -101,9 +163,9 @@ export default function CourseNotices({ courseId }: { courseId?: string }) {
                         <span className="text-xs text-muted-foreground">
                           {formatDate(notice.date)}
                         </span>
-                        {notice.priority === 'high' && (
+                        {(notice.priority === 'high' || showFallbackNotices) && (
                           <Badge variant="destructive" className="text-xs">
-                            Important
+                            {showFallbackNotices ? 'Fallback' : 'Important'}
                           </Badge>
                         )}
                       </div>
@@ -117,4 +179,4 @@ export default function CourseNotices({ courseId }: { courseId?: string }) {
       </div>
     </div>
   );
-} 
+}

@@ -46,6 +46,8 @@ const CourseManagement: React.FC = () => {
 
   const [errorMessage, setErrorMessage] = React.useState('');
   const [enrollments, setEnrollments] = React.useState<any[]>([]);
+  const [notices, setNotices] = React.useState<Notice[]>([]);
+  const [noticesLoading, setNoticesLoading] = React.useState(true);
 
   React.useEffect(() => {
     const fetchCourseDetails = async () => {
@@ -102,6 +104,49 @@ const CourseManagement: React.FC = () => {
 
     fetchCourseDetails();
   }, [courseIdState]);  
+
+  // Fetch course notices
+  React.useEffect(() => {
+    const fetchCourseNotices = async () => {
+      if (!courseId) return;
+
+      try {
+        setNoticesLoading(true);
+        console.log(`Fetching notices for courseId: ${courseId}`);
+        
+        const noticesResponse = await courseManagementService.getCourseNotices(courseId);
+        
+        console.log('Notices Response:', {
+          success: noticesResponse.success,
+          message: noticesResponse.message,
+          noticesCount: noticesResponse.notices?.length,
+          noticesDetails: JSON.stringify(noticesResponse.notices, null, 2)
+        });
+        
+        // Sort notices by date, most recent first
+        const sortedNotices = (noticesResponse.notices || [])
+          .sort((a, b) => b.date.getTime() - a.date.getTime());
+        
+        setNotices(sortedNotices);
+        
+        // Log any error message if notices fetch was unsuccessful
+        if (!noticesResponse.success) {
+          toast.warning(noticesResponse.message || 'Could not fetch all notices', {
+            description: 'Falling back to default notifications'
+          });
+        }
+      } catch (error) {
+        console.error('Comprehensive Error in fetchCourseNotices:', error);
+        toast.error('Failed to load course notices', {
+          description: error instanceof Error ? error.message : 'Unknown error occurred'
+        });
+      } finally {
+        setNoticesLoading(false);
+      }
+    };
+
+    fetchCourseNotices();
+  }, [courseId]);
 
   // Update the existing course and enrollment logic
   const course = React.useMemo(() => {
@@ -315,7 +360,7 @@ const CourseManagement: React.FC = () => {
               <CourseSchedule courseId={courseIdState} />
             </TabsContent>
             <TabsContent value="notices">
-              <CourseNotices courseId={courseIdState} />
+              <CourseNotices courseId={courseIdState} notices={notices} loading={noticesLoading} />
             </TabsContent>
             <TabsContent value="exams">
               <ExamSchedule courseId={courseIdState} />

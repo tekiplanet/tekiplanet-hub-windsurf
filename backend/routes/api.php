@@ -73,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('courses')->group(function () {
         Route::get('/enrolled', [EnrollmentController::class, 'getUserEnrolledCourses']);
         Route::get('/{courseId}/details', [CourseController::class, 'getCourseDetails']);
+        Route::get('/{courseId}/notices', [CourseController::class, 'getCourseNotices']);
     });
 });
 

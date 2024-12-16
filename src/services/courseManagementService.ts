@@ -1,4 +1,5 @@
-import { apiClient } from '@/lib/axios';
+import apiClient, { isAxiosError } from '@/lib/axios';
+import axios from 'axios';
 
 export interface CourseDetails {
   course: any;
@@ -12,6 +13,10 @@ export interface CourseDetails {
   enrollment: any;
   installments: any[];
 }
+
+const courseNotices = {
+  // Add local course notices data here
+};
 
 export const courseManagementService = {
   async getCourseDetails(courseId: string) {
@@ -35,6 +40,70 @@ export const courseManagementService = {
     } catch (error) {
       console.error('Error fetching course details:', error);
       throw error;
+    }
+  },
+
+  async getCourseNotices(courseId: string) {
+    try {
+      console.log(`Fetching notices for courseId: ${courseId}`);
+      
+      // Validate courseId
+      if (!courseId) {
+        console.warn('No courseId provided');
+        throw new Error('Course ID is required');
+      }
+      
+      const response = await apiClient.get(`/courses/${courseId}/notices`);
+      
+      // Log the full response for debugging
+      console.log('Full Notices Response:', {
+        status: response.status,
+        data: JSON.stringify(response.data, null, 2)
+      });
+      
+      // Validate response structure
+      if (!response || !response.data || !response.data.notices) {
+        console.warn('Invalid response structure for course notices');
+        throw new Error('Invalid response from server');
+      }
+      
+      // Transform the notices to match the existing type structure
+      const transformedNotices = response.data.notices.map((notice: any) => ({
+        id: notice.id.toString(),
+        type: notice.is_important ? 'announcement' : 'resource',
+        title: notice.title,
+        content: notice.content,
+        date: new Date(notice.published_at),
+        read: false, // You might want to implement read status later
+        priority: notice.is_important ? 'high' : 'normal'
+      }));
+
+      console.log('Transformed Notices:', JSON.stringify(transformedNotices, null, 2));
+
+      return {
+        success: true,
+        notices: transformedNotices
+      };
+    } catch (error) {
+      // More detailed error logging
+      console.error('Full Error Object:', error);
+      
+      if (axios.isAxiosError(error)) {
+        console.error('Axios Error Details:', {
+          message: error.message,
+          status: error.response?.status,
+          data: JSON.stringify(error.response?.data, null, 2)
+        });
+      }
+
+      // Fallback to local notices if backend fails
+      const localNotices = courseNotices[courseId as keyof typeof courseNotices] || [];
+      
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to fetch notices from server',
+        notices: localNotices
+      };
     }
   },
 

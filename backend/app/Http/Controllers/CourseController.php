@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\CourseFeature;
+use App\Models\CourseNotice;
 use Illuminate\Http\Request;
 
 class CourseController extends Controller
@@ -90,5 +91,27 @@ class CourseController extends Controller
         ])->findOrFail($courseId);
         
         return response()->json($course->modules);
+    }
+
+    /**
+     * Get notices for a specific course
+     *
+     * @param int $courseId The ID of the course
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCourseNotices($courseId)
+    {
+        // Validate the course exists
+        $course = Course::findOrFail($courseId);
+
+        // Fetch notices related to this course
+        $notices = CourseNotice::where('course_id', $courseId)
+            ->orderBy('published_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'notices' => $notices,
+            'course_id' => $courseId
+        ]);
     }
 }
