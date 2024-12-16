@@ -21,6 +21,11 @@ export const courseManagementService = {
       
       console.log('Full course details response:', JSON.stringify(response.data, null, 2));
       
+      // Log specific details about schedules
+      console.log('Schedules in response:', response.data.schedules);
+      console.log('Schedules length:', response.data.schedules?.length);
+      console.log('Schedules type:', typeof response.data.schedules);
+      
       if (!response.data.course) {
         console.warn('No course details found in response');
         throw new Error('Course details not found');

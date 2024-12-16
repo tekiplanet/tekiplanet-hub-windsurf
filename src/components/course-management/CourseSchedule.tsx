@@ -21,7 +21,8 @@ interface ClassSession {
 export default function CourseSchedule({ courseId }: { courseId?: string }) {
   const [schedules, setSchedules] = useState<ClassSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [nextClass, setNextClass] = useState<ClassSession | null>(null);
 
   useEffect(() => {
     const fetchCourseSchedule = async () => {
@@ -35,19 +36,93 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
         setIsLoading(true);
         const courseDetails = await courseManagementService.getCourseDetails(courseId);
         
-        // Transform schedules to match ClassSession interface
-        const transformedSchedules = (courseDetails.schedules || []).map(schedule => ({
-          id: schedule.id?.toString() || Math.random().toString(),
-          title: schedule.title || 'Untitled Session',
-          type: schedule.type || 'lecture',
-          date: new Date(schedule.date || Date.now()),
-          duration: schedule.duration || '1 hour',
-          instructor: schedule.instructor || 'TBA',
-          location: schedule.location || 'online',
-          meetingLink: schedule.meetingLink
-        }));
+        // Log the raw course details
+        console.log('Raw Course Details:', courseDetails);
+        console.log('Schedules:', courseDetails.schedules);
+        
+        // Flexible schedule transformation
+        const transformedSchedules: ClassSession[] = [];
 
-        setSchedules(transformedSchedules);
+        // Check different possible schedule sources
+        const scheduleSources = [
+          courseDetails.schedules,
+          courseDetails.course?.schedules
+        ];
+
+        // Day mapping for string days to numbers
+        const dayMap: {[key: string]: number} = {
+          'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 
+          'Thu': 4, 'Fri': 5, 'Sat': 6
+        };
+
+        scheduleSources.forEach(scheduleSource => {
+          if (Array.isArray(scheduleSource)) {
+            scheduleSource.forEach(schedule => {
+              // Log each schedule for debugging
+              console.log('Processing Schedule:', schedule);
+
+              // Parse days of week
+              const daysOfWeek = schedule.days_of_week 
+                ? schedule.days_of_week.split(',').map(day => dayMap[day.trim()] || -1)
+                : [];
+
+              // Generate sessions for each day in the date range
+              const startDate = new Date(schedule.start_date);
+              const endDate = new Date(schedule.end_date);
+              const currentDate = new Date(startDate);
+
+              while (currentDate <= endDate) {
+                // Check if current day is in the days of week
+                if (daysOfWeek.includes(currentDate.getDay())) {
+                  // Parse start and end times
+                  const [startHour, startMinute] = (schedule.start_time || '00:00').split(':').map(Number);
+                  const [endHour, endMinute] = (schedule.end_time || '01:00').split(':').map(Number);
+
+                  // Create session date
+                  const sessionDate = new Date(currentDate);
+                  sessionDate.setHours(startHour, startMinute, 0, 0);
+
+                  const session: ClassSession = {
+                    id: `${schedule.id}-${sessionDate.toISOString()}`,
+                    title: `${schedule.course?.title || 'Course Session'} - ${schedule.location || 'Location TBA'}`,
+                    type: 'lecture',
+                    date: sessionDate,
+                    duration: `${endHour - startHour} hours`,
+                    instructor: schedule.course?.instructor?.name || 'TBA',
+                    location: schedule.location || 'online',
+                    meetingLink: schedule.meeting_link
+                  };
+
+                  transformedSchedules.push(session);
+                }
+
+                // Move to next day
+                currentDate.setDate(currentDate.getDate() + 1);
+              }
+            });
+          }
+        });
+
+        // Log the transformed schedules
+        console.log('Transformed Schedules:', transformedSchedules);
+
+        // Sort schedules by date
+        const sortedSchedules = transformedSchedules.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+        // Log the sorted schedules
+        console.log('Sorted Schedules:', sortedSchedules);
+
+        // Find the next upcoming class
+        const upcomingClass = sortedSchedules.find(session => session.date > new Date());
+        console.log('Next Upcoming Class:', upcomingClass);
+        setNextClass(upcomingClass || null);
+
+        setSchedules(sortedSchedules);
+        
+        // Set selected date to the next class date if available
+        if (upcomingClass) {
+          setSelectedDate(upcomingClass.date);
+        }
       } catch (error) {
         console.error("Error fetching course schedule:", error);
         toast.error("Failed to load course schedule");
@@ -59,14 +134,25 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
     fetchCourseSchedule();
   }, [courseId]);
 
-  const upcomingClasses = schedules
-    .filter(session => session.date > new Date());
-
   // Function to check if a date has classes
+  const classDates = schedules.map(session => session.date);
   const isDayWithClass = (day: Date) => {
-    return upcomingClasses.some(session => 
-      session.date.toDateString() === day.toDateString()
+    return classDates.some(classDate => 
+      classDate.toDateString() === day.toDateString()
     );
+  };
+
+  // Prepare calendar modifiers
+  const calendarModifiers = {
+    hasClass: isDayWithClass
+  };
+
+  const calendarModifiersStyles = {
+    hasClass: {
+      backgroundColor: "hsl(var(--primary))",
+      color: "white",
+      borderRadius: "50%"
+    }
   };
 
   if (isLoading) {
@@ -84,15 +170,34 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-lg font-semibold">Class Schedule</h2>
-          <p className="text-sm text-muted-foreground">
-            View your upcoming classes and sessions
-          </p>
-        </div>
-      </div>
+      {/* Next Class Highlight */}
+      {nextClass && (
+        <Card className="bg-primary/10">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Next Class</h3>
+                <p className="text-sm text-muted-foreground">{nextClass.title}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium">
+                  {nextClass.date.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {nextClass.date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Calendar and Schedule Grid */}
       <div className="flex flex-col gap-6">
@@ -101,17 +206,10 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
           <CardContent className="p-4">
             <Calendar
               mode="single"
-              selected={date}
-              onSelect={setDate}
-              modifiers={{
-                hasClass: (date) => isDayWithClass(date)
-              }}
-              modifiersStyles={{
-                hasClass: {
-                  backgroundColor: "hsl(var(--primary))",
-                  color: "white"
-                }
-              }}
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              modifiers={calendarModifiers}
+              modifiersStyles={calendarModifiersStyles}
               className="rounded-md mx-auto"
             />
           </CardContent>
@@ -119,63 +217,76 @@ export default function CourseSchedule({ courseId }: { courseId?: string }) {
 
         {/* Schedule List */}
         <div className="space-y-4">
-          {upcomingClasses.map((session) => (
-            <Card key={session.id} className="overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4">
-                  {/* Title and Type */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline" className="capitalize">
-                        {session.type}
-                      </Badge>
-                      <Badge variant="secondary">
-                        {session.location}
-                      </Badge>
+          {/* Filter classes based on selected date */}
+          {schedules
+            .filter(session => 
+              !selectedDate || 
+              session.date.toDateString() === selectedDate.toDateString()
+            )
+            .map((session) => (
+              <Card key={session.id} className="overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4">
+                    {/* Title and Type */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="capitalize">
+                          {session.type}
+                        </Badge>
+                        <Badge variant="secondary">
+                          {session.location}
+                        </Badge>
+                      </div>
+                      <h3 className="font-semibold text-lg">{session.title}</h3>
                     </div>
-                    <h3 className="font-semibold text-lg">{session.title}</h3>
-                  </div>
 
-                  {/* Details */}
-                  <div className="grid gap-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4 shrink-0" />
-                      <span>{session.duration}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CalendarIcon className="h-4 w-4 shrink-0" />
-                      <span>
-                        {new Date(session.date).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                        {' at '}
-                        {new Date(session.date).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4 shrink-0" />
-                      <span>Instructor: {session.instructor}</span>
+                    {/* Details */}
+                    <div className="grid gap-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4 shrink-0" />
+                        <span>{session.duration}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarIcon className="h-4 w-4 shrink-0" />
+                        <span>
+                          {session.date.toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                          {' at '}
+                          {session.date.toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4 shrink-0" />
+                        <span>Instructor: {session.instructor}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
 
-          {upcomingClasses.length === 0 && (
+          {/* No classes for selected date */}
+          {schedules.filter(session => 
+            !selectedDate || 
+            session.date.toDateString() === selectedDate.toDateString()
+          ).length === 0 && (
             <Card>
               <CardContent className="p-8 text-center">
                 <div className="text-muted-foreground">
                   <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p className="font-medium">No Upcoming Classes</p>
+                  <p className="font-medium">No Classes</p>
                   <p className="text-sm mt-1">
-                    Check back later for new class schedules
+                    {selectedDate 
+                      ? `No classes scheduled on ${selectedDate.toLocaleDateString()}`
+                      : 'No classes scheduled'
+                    }
                   </p>
                 </div>
               </CardContent>
