@@ -188,7 +188,7 @@ export default function MyCourses() {
   const [fullPaymentCourse, setFullPaymentCourse] = useState<EnrolledCourse | null>(null);
 
   // Get user's current balance
-  const balance = getBalance(user?.id || '');
+  const balance = user?.wallet_balance || 0;
 
   // Get enrolled courses with details
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
