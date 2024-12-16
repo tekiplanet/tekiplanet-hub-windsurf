@@ -95,6 +95,70 @@ export default function CourseDetails() {
   const [showInsufficientFundsModal, setShowInsufficientFundsModal] = React.useState(false);
   const [showConfirmEnrollmentModal, setShowConfirmEnrollmentModal] = React.useState(false);
 
+  // Render Curriculum Section
+  const renderCurriculum = () => {
+    if (!course || !course.curriculum || course.curriculum.length === 0) {
+      return (
+        <div className="text-center text-muted-foreground">
+          No curriculum available for this course.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-2xl font-bold">Course Curriculum</h3>
+        <div className="space-y-4">
+          {course.curriculum.map((module, moduleIndex) => (
+            <div key={module.id} className="border rounded-lg p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-lg font-semibold">
+                  Module {moduleIndex + 1}: {module.title}
+                </h4>
+                <span className="text-sm text-muted-foreground">
+                  {module.topics?.length || 0} Topics
+                </span>
+              </div>
+              
+              {module.topics && module.topics.length > 0 && (
+                <div className="space-y-2">
+                  {module.topics.map((topic, topicIndex) => (
+                    <div 
+                      key={topic.id} 
+                      className="bg-secondary/50 p-3 rounded-md"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">
+                          Topic {topicIndex + 1}: {topic.title}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {topic.lessons?.length || 0} Lessons
+                        </span>
+                      </div>
+                      
+                      {topic.lessons && topic.lessons.length > 0 && (
+                        <ul className="pl-4 mt-2 space-y-1 text-sm">
+                          {topic.lessons.map((lesson, lessonIndex) => (
+                            <li 
+                              key={lesson.id} 
+                              className="list-disc list-inside"
+                            >
+                              Lesson {lessonIndex + 1}: {lesson.title}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   if (isCourseLoading) {
     return (
       <Dashboard>
@@ -379,36 +443,7 @@ export default function CourseDetails() {
                 </TabsContent>
 
                 <TabsContent value="curriculum">
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        {course.syllabus?.map((item, index) => (
-                          <div key={index} className="flex items-start gap-4">
-                            <div className={`rounded-full p-2 ${
-                              item.completed 
-                                ? 'bg-primary/10 text-primary' 
-                                : 'bg-secondary'
-                            }`}>
-                              <BookOpen className="h-4 w-4" />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium">{item.title}</p>
-                                <span className="text-sm text-muted-foreground">
-                                  {item.duration}
-                                </span>
-                              </div>
-                              {item.completed && (
-                                <span className="text-sm text-primary">Completed</span>
-                              )}
-                            </div>
-                          </div>
-                        )) || (
-                          <p className="text-muted-foreground">No curriculum available</p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  {renderCurriculum()}
                 </TabsContent>
 
                 <TabsContent value="instructor">

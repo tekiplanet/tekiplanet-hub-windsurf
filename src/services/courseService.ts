@@ -17,6 +17,7 @@ class CourseService {
     try {
       const courseResponse = await apiClient.get(`/api/courses/${courseId}`);
       const featuresResponse = await apiClient.get(`/api/courses/${courseId}/features`);
+      const curriculumResponse = await apiClient.get(`/api/courses/${courseId}/curriculum`);
       
       // Get current user ID from auth store
       const userId = useAuthStore.getState().user?.id;
@@ -29,6 +30,7 @@ class CourseService {
       return {
         ...courseResponse.data,
         features: featuresResponse.data.map((feature: any) => feature.feature),
+        curriculum: curriculumResponse.data,
         user: { wallet_balance: walletBalance }
       };
     } catch (error) {

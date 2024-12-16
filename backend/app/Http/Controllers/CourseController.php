@@ -42,7 +42,18 @@ class CourseController extends Controller
 
     public function show($id)
     {
-        $course = Course::findOrFail($id);
+        $course = Course::with([
+            'modules' => function($query) {
+                $query->orderBy('order');
+            },
+            'modules.topics' => function($query) {
+                $query->orderBy('order');
+            },
+            'modules.lessons' => function($query) {
+                $query->orderBy('order');
+            }
+        ])->findOrFail($id);
+        
         return response()->json($course);
     }
 
@@ -56,5 +67,22 @@ class CourseController extends Controller
     {
         $features = CourseFeature::where('course_id', $courseId)->get();
         return response()->json($features);
+    }
+
+    public function getCurriculum($courseId)
+    {
+        $course = Course::with([
+            'modules' => function($query) {
+                $query->orderBy('order');
+            },
+            'modules.topics' => function($query) {
+                $query->orderBy('order');
+            },
+            'modules.lessons' => function($query) {
+                $query->orderBy('order');
+            }
+        ])->findOrFail($courseId);
+        
+        return response()->json($course->modules);
     }
 }

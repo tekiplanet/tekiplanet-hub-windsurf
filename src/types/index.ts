@@ -31,6 +31,31 @@ export interface Installment {
   overdue: boolean;
 }
 
+export interface CourseLesson {
+  id: number | string;
+  title: string;
+  description?: string;
+  duration?: string;
+  content_type?: 'video' | 'text' | 'quiz';
+  order?: number;
+}
+
+export interface CourseTopic {
+  id: number | string;
+  title: string;
+  description?: string;
+  order?: number;
+  lessons?: CourseLesson[];
+}
+
+export interface CourseModule {
+  id: number | string;
+  title: string;
+  description?: string;
+  order?: number;
+  topics?: CourseTopic[];
+}
+
 export interface Course {
   id: string;
   title: string;
@@ -42,6 +67,7 @@ export interface Course {
   rating: number;
   category: string;
   image: string;
+  curriculum?: CourseModule[];
 }
 
 export interface EnrolledCourse {
@@ -54,4 +80,4 @@ export interface EnrolledCourse {
   course?: Course;
   paymentPlan: 'full' | 'installment';
   installments?: Installment[];
-} 
+}

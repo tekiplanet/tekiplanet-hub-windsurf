@@ -36,4 +36,9 @@ class CourseTopic extends Model
     {
         return $this->belongsTo(CourseModule::class, 'module_id');
     }
+
+    public function lessons()
+    {
+        return $this->hasMany(CourseLesson::class, 'module_id', 'module_id');
+    }
 }

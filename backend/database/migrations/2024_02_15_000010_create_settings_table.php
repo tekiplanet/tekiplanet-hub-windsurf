@@ -16,6 +16,9 @@ return new class extends Migration
             $table->text('site_description')->nullable();
             $table->string('site_logo')->nullable();
             $table->string('site_favicon')->nullable();
+
+            $table->decimal('enrollment_fee', 10, 2);
+
             
             // Currency and Financial Settings
             $table->string('default_currency')->default('USD');

@@ -56,6 +56,7 @@ Route::get('/courses', [CourseController::class, 'index']);
 Route::get('/courses/{courseId}', [CourseController::class, 'show']);
 Route::get('/courses/{courseId}/features', [CourseController::class, 'getCourseFeatures']);
 Route::get('/courses/{courseId}/features/{featureId}', [CourseController::class, 'getCourseFeature']);
+Route::get('/courses/{courseId}/curriculum', [CourseController::class, 'getCurriculum']);
 
 // Settings Routes
 Route::prefix('settings')->group(function () {
