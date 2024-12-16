@@ -811,6 +811,9 @@ export default function MyCourses() {
         selectedPaymentPlan={selectedPaymentPlan}
         courseName={selectedCourse?.course_title || ''}
         onConfirmPayment={() => {
+          // Prevent multiple simultaneous payment attempts
+          if (isProcessingPayment) return;
+
           // This could be either full payment or installment payment
           if (selectedPaymentPlan === 'full') {
             handleFullPaymentConfirm();
@@ -833,12 +836,19 @@ export default function MyCourses() {
               dueDate: selectedInstallment.due_date
             });
 
+            // Add a timeout to prevent UI freezing on mobile
+            const paymentTimeout = setTimeout(() => {
+              setIsProcessingPayment(false);
+              toast.error('Payment processing timed out. Please try again.');
+            }, 30000); // 30 seconds timeout
+
             enrollmentService.processInstallmentPayment(
               selectedCourse.course_id, 
               selectedInstallment.id, 
               selectedInstallment.amount
             )
             .then(response => {
+              clearTimeout(paymentTimeout);
               console.log('Installment payment response:', response);
 
               // Immediately update the UI to reflect the paid status
@@ -866,10 +876,14 @@ export default function MyCourses() {
               );
 
               setEnrolledCourses(updatedEnrollments);
-              // toast.success("Automatically paid the next installment!");
+              setIsProcessingPayment(false);
+              setShowInsufficientFundsModal(false);
+              toast.success("Installment paid successfully!");
             })
             .catch(retryError => {
+              clearTimeout(paymentTimeout);
               console.error('Error paying next installment:', retryError);
+              setIsProcessingPayment(false);
               toast.error('Failed to pay the next installment');
             });
             return;
