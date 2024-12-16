@@ -124,10 +124,22 @@ export const enrollmentService = {
           enrolled_at: enrollment.enrolled_at,
           progress: enrollment.progress ?? 0,
           lastAccessed: new Date().toISOString(),
-          nextLesson: 'Introduction to the Course', // Placeholder
-          nextDeadline: enrollment.installments && enrollment.installments.length > 0 
-            ? enrollment.installments[0].due_date 
-            : new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(),
+          nextLesson: enrollment.next_course_schedule 
+            ? ` ${new Date(enrollment.next_course_schedule).toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}` 
+            : 'No upcoming classes',
+          nextDeadline: enrollment.next_payment_deadline
+            ? `Payment due on ${new Date(enrollment.next_payment_deadline).toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}` 
+            : 'No upcoming payment deadlines',
           paymentPlan: enrollment.payment_status === 'fully_paid' ? 'full' : 'installment'
         };
       });

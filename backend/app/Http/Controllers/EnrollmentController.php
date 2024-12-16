@@ -7,13 +7,13 @@ use App\Models\User;
 use App\Models\Enrollment;
 use App\Models\Installment;
 use App\Models\Transaction;
+use App\Models\CourseSchedule;
 use App\Services\EnrollmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-
 
 class EnrollmentController extends Controller
 {
@@ -89,6 +89,18 @@ class EnrollmentController extends Controller
 
             $paidAmount = $installments->where('status', 'paid')->sum('amount');
 
+            // Find the next upcoming course schedule
+            $nextCourseSchedule = CourseSchedule::where('course_id', $enrollment->course_id)
+                ->where('start_date', '>=', now()->toDateString())
+                ->orderBy('start_date', 'asc')
+                ->first();
+
+            // Find the next upcoming payment deadline
+            $nextPaymentDeadline = $installments
+                ->where('status', '!=', 'paid')
+                ->sortBy('due_date')
+                ->first();
+
             return [
                 'enrollment_id' => $enrollment->id,
                 'course_id' => $enrollment->course_id,
@@ -108,6 +120,8 @@ class EnrollmentController extends Controller
                 'total_tuition' => $totalTuition,
                 'paid_amount' => $paidAmount,
                 'progress' => $enrollment->progress ?? 0,
+                'next_course_schedule' => $nextCourseSchedule ? $nextCourseSchedule->start_date : null,
+                'next_payment_deadline' => $nextPaymentDeadline ? $nextPaymentDeadline->due_date : null,
                 'installments' => $installments->map(function($installment) {
                     return [
                         'id' => $installment->id,

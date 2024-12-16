@@ -339,7 +339,7 @@ const Dashboard = ({ children }: { children?: React.ReactNode }) => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-full justify-start gap-2">
                       <GraduationCap className="h-4 w-4" />
-                      {user?.account_type === "student" ? "Student" : user?.account_type === "business" ? "Business" : user?.account_type === "professional" ? "Student" : "Professional"}
+                      {user?.account_type === "student" ? "Student" : user?.account_type === "business" ? "Business" : user?.account_type === "professional" ? "Professional" : "Professional"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">

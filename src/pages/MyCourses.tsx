@@ -55,6 +55,8 @@ interface EnrolledCourse {
     status: string;
     paid_at: string | null;
   }[];
+  nextLesson: string;
+  nextDeadline: string;
 }
 
 function PaymentPlanModal({ 
@@ -653,20 +655,20 @@ export default function MyCourses() {
                   {/* Next Up Section */}
                   <div className="space-y-2 pt-2 border-t">
                     <div className="flex items-start gap-2 text-sm">
-                      <BookOpen className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                      <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
                       <div>
-                        <p className="text-muted-foreground">Next Lesson</p>
-                        <p className="font-medium line-clamp-1">Lesson 1</p>
+                        <p className="text-muted-foreground">Next Class</p>
+                        <p className="font-medium">
+                          {enrollment.nextLesson || 'No upcoming classes'}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2 text-sm">
-                      <Calendar className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                      <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
                       <div>
-                        <p className="text-muted-foreground">Next Deadline</p>
+                        <p className="text-muted-foreground">Next Payment Deadline</p>
                         <p className="font-medium">
-                          {enrollment.installments && enrollment.installments.length > 0 
-                            ? new Date(enrollment.installments[0].due_date).toLocaleDateString() 
-                            : 'No upcoming deadline'}
+                          {enrollment.nextDeadline || 'No upcoming payment deadlines'}
                         </p>
                       </div>
                     </div>
