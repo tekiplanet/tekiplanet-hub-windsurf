@@ -624,7 +624,7 @@ export default function MyCourses() {
                           className="w-full text-white"
                           onClick={() => handlePayment(enrollment)}
                         >
-                          Pay Full Tuition
+                          Select Payment Plan
                         </Button>
                       )}
                     </div>

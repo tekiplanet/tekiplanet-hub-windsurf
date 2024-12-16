@@ -70,15 +70,24 @@ class EnrollmentController extends Controller
             $installments = $enrollment->installments;
             $paymentStatus = $this->calculateOverallPaymentStatus($installments);
 
-            // Calculate total tuition and paid amount
-            $totalTuition = optional($enrollment->course)->tuition_fee ?? 0;
+            // Ensure course is loaded and price is retrieved
+            $course = $enrollment->course;
+            $totalTuition = $course ? $course->price : 0;
+
+            Log::info('Course details for enrollment', [
+                'course_id' => $enrollment->course_id,
+                'course_title' => optional($course)->title,
+                'course_price' => $totalTuition,
+                'course_exists' => $course ? 'Yes' : 'No'
+            ]);
+
             $paidAmount = $installments->where('status', 'paid')->sum('amount');
 
             return [
                 'enrollment_id' => $enrollment->id,
                 'course_id' => $enrollment->course_id,
-                'course_title' => optional($enrollment->course)->title,
-                'course_image' => optional($enrollment->course)->image_url,
+                'course_title' => optional($course)->title,
+                'course_image' => optional($course)->image_url,
                 'enrollment_status' => $enrollment->status,
                 'payment_status' => $paymentStatus,
                 'total_tuition' => $totalTuition,
