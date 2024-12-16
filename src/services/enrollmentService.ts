@@ -248,4 +248,59 @@ export const enrollmentService = {
       throw error;
     }
   },
+
+  async payInstallment(
+    installmentId: string, 
+    amount: number
+  ): Promise<{
+    success: boolean;
+    message: string;
+    installment?: {
+      id: string;
+      amount: number;
+      due_date: string;
+      status: 'pending' | 'paid' | 'overdue';
+      paid_at: string | null;
+    };
+    enrollment?: {
+      id: string;
+      payment_status: 'unpaid' | 'partially_paid' | 'fully_paid';
+    };
+  }> {
+    try {
+      console.log('Processing installment payment', { installmentId, amount });
+      
+      const response = await apiClient.post('/enrollments/pay-installment', {
+        installment_id: installmentId,
+        amount: amount
+      });
+
+      console.log('Installment payment response:', JSON.stringify(response.data, null, 2));
+
+      // Validate response structure
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.message || 'Failed to pay installment');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error in payInstallment:', error);
+      
+      // Provide more detailed error information
+      if (isAxiosError(error)) {
+        console.error('Axios error details:', {
+          response: error.response?.data,
+          status: error.response?.status,
+          headers: error.response?.headers
+        });
+        
+        throw new Error(
+          error.response?.data?.message || 
+          'Network error occurred while paying installment'
+        );
+      }
+      
+      throw error;
+    }
+  },
 };

@@ -577,7 +577,7 @@ class EnrollmentController extends Controller
             ]);
 
             // Update enrollment payment status
-            $enrollment->payment_status = 'partially_paid';
+            $enrollment->payment_status = 'unpaid';
             $enrollment->save();
 
             // Commit transaction
@@ -625,6 +625,116 @@ class EnrollmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create installment plan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function payInstallment(Request $request)
+    {
+        // Validate the request
+        $validated = $request->validate([
+            'installment_id' => 'required|exists:installments,id',
+            'amount' => 'required|numeric|min:0'
+        ]);
+
+        // Get the authenticated user
+        $user = Auth::user();
+
+        // Find the installment
+        $installment = Installment::findOrFail($validated['installment_id']);
+
+        // Verify the installment belongs to the user
+        if ($installment->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized to pay this installment'
+            ], 403);
+        }
+
+        // Check if installment is already paid
+        if ($installment->status === 'paid') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Installment already paid'
+            ], 400);
+        }
+
+        // Check wallet balance
+        if ($user->wallet_balance < $validated['amount']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Insufficient wallet balance'
+            ], 400);
+        }
+
+        // Start database transaction
+        DB::beginTransaction();
+
+        try {
+            // Deduct from wallet
+            $user->wallet_balance -= $validated['amount'];
+            $user->save();
+
+            // Update installment
+            $installment->status = 'paid';
+            $installment->paid_at = now();
+            $installment->save();
+
+            // Get the enrollment
+            $enrollment = $installment->enrollment;
+
+            // Check if all installments are paid
+            $remainingUnpaidInstallments = Installment::where('enrollment_id', $enrollment->id)
+                ->where('status', 'pending')
+                ->count();
+
+            // Update enrollment payment status
+            if ($remainingUnpaidInstallments === 0) {
+                $enrollment->payment_status = 'fully_paid';
+            } else {
+                $enrollment->payment_status = 'partially_paid';
+            }
+            $enrollment->save();
+
+            // Log the transaction
+            Log::info('Installment payment successful', [
+                'user_id' => $user->id,
+                'installment_id' => $installment->id,
+                'amount' => $validated['amount']
+            ]);
+
+            // Commit transaction
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Installment paid successfully',
+                'installment' => [
+                    'id' => $installment->id,
+                    'amount' => $installment->amount,
+                    'due_date' => $installment->due_date,
+                    'status' => $installment->status,
+                    'paid_at' => $installment->paid_at,
+                ],
+                'enrollment' => [
+                    'id' => $enrollment->id,
+                    'payment_status' => $enrollment->payment_status
+                ]
+            ]);
+        } catch (\Exception $e) {
+            // Rollback transaction
+            DB::rollBack();
+
+            // Log error
+            Log::error('Installment payment failed', [
+                'user_id' => $user->id,
+                'installment_id' => $installment->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process installment payment: ' . $e->getMessage()
             ], 500);
         }
     }

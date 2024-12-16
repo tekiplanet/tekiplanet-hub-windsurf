@@ -34,6 +34,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { enrollmentService } from '@/services/enrollmentService';
 import { Loader2 } from 'lucide-react';
+import InsufficientFundsModal from '@/components/modals/InsufficientFundsModal';
+import { settingsService } from '@/services/settingsService';
 
 interface EnrolledCourse {
   enrollment_id: string;
@@ -115,62 +117,6 @@ function PaymentPlanModal({
   );
 }
 
-const InsufficientFundsModal = ({
-  open,
-  onOpenChange,
-  balance,
-  requiredAmount,
-  onFundWallet
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  balance: number | string;
-  requiredAmount: number;
-  onFundWallet: () => void;
-}) => {
-  // Convert balance to number
-  const numBalance = Number(balance || 0);
-  
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Insufficient Funds</DialogTitle>
-          <DialogDescription>
-            Your current wallet balance is insufficient for this transaction.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="flex flex-col items-center space-y-2">
-            <div className="text-sm">
-              <span className="font-semibold">Current Balance:</span> ${numBalance.toFixed(2)}
-            </div>
-            <div className="text-sm">
-              <span className="font-semibold">Required Amount:</span> ${requiredAmount.toFixed(2)}
-            </div>
-            <div className="text-sm text-red-600">
-              Shortfall: ${(requiredAmount - numBalance).toFixed(2)}
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={onFundWallet}
-          >
-            Fund Wallet
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 export default function MyCourses() {
   const navigate = useNavigate();
   const user = useAuthStore(state => state.user);
@@ -184,6 +130,7 @@ export default function MyCourses() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [showInsufficientFundsModal, setShowInsufficientFundsModal] = useState(false);
+  const [balance, setBalance] = useState(0);
   const [selectedCourse, setSelectedCourse] = useState<EnrolledCourse | null>(null);
   const [showPaymentPlanModal, setShowPaymentPlanModal] = useState(false);
   const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<'full' | 'installment' | null>(null);
@@ -191,9 +138,6 @@ export default function MyCourses() {
   const [showFullPaymentConfirmModal, setShowFullPaymentConfirmModal] = useState(false);
   const [fullPaymentCourse, setFullPaymentCourse] = useState<EnrolledCourse | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-
-  // Get user's current balance
-  const balance = user?.wallet_balance || 0;
 
   // Get enrolled courses with details
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
@@ -223,6 +167,11 @@ export default function MyCourses() {
       console.warn('No user ID found, cannot fetch courses');
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    // Set balance from user's wallet balance
+    setBalance(user?.wallet_balance || 0);
+  }, [user?.wallet_balance]);
 
   // Filter and sort courses
   const filteredCourses = enrolledCourses
@@ -343,7 +292,7 @@ export default function MyCourses() {
   };
 
   const handleInstallmentPayment = (enrollment: EnrolledCourse, installmentId: string) => {
-    // Validate that the installment is not already paid
+    // Find the specific installment
     const selectedInstallment = enrollment.installments?.find(inst => inst.id === installmentId);
     
     if (!selectedInstallment || selectedInstallment.status === 'paid') {
@@ -351,87 +300,20 @@ export default function MyCourses() {
       return;
     }
 
+    // Set the selected course and installment amount
+    setSelectedCourse(enrollment);
+    setSelectedPaymentPlan('installment');
+
     // Check if balance is sufficient
-    if (balance < selectedInstallment.amount) {
-      setSelectedCourse({
-        ...enrollment,
-        total_tuition: selectedInstallment.amount
-      });
-      
+    const currentBalance = user?.wallet_balance || 0;
+
+    if (currentBalance < selectedInstallment.amount) {
       // Show insufficient funds modal
       setShowInsufficientFundsModal(true);
-      return;
+    } else {
+      // Show confirmation modal for sufficient balance
+      setShowInsufficientFundsModal(true);
     }
-
-    // Proceed with installment payment
-    setIsProcessingPayment(true);
-    
-    enrollmentService.processInstallmentPayment(
-      enrollment.course_id, 
-      selectedInstallment.id,
-      selectedInstallment.amount
-    )
-    .then(response => {
-      // Update local state to reflect installment payment
-      const updatedEnrollments = enrolledCourses.map(course => 
-        course.enrollment_id === enrollment.enrollment_id
-          ? { 
-              ...course, 
-              installments: course.installments?.map(inst => 
-                inst.id === installmentId 
-                  ? { 
-                      ...response.installment,
-                      number: inst.number,
-                      paid: response.installment.status === 'paid',
-                      overdue: response.installment.status === 'overdue'
-                    } 
-                  : inst
-              ),
-              // Update payment status if all installments are paid
-              payment_status: course.installments?.every(inst => 
-                inst.id === installmentId || inst.status === 'paid'
-              ) ? 'fully_paid' : 'pending_installments'
-            }
-          : course
-      );
-
-      // Update localStorage
-      const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
-      const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-        course.enrollment_id === enrollment.enrollment_id
-          ? { 
-              ...course, 
-              installments: course.installments?.map(inst => 
-                inst.id === installmentId 
-                  ? { 
-                      ...response.installment,
-                      number: inst.number,
-                      paid: response.installment.status === 'paid',
-                      overdue: response.installment.status === 'overdue'
-                    } 
-                  : inst
-              ),
-              // Update payment status if all installments are paid
-              payment_status: course.installments?.every(inst => 
-                inst.id === installmentId || inst.status === 'paid'
-              ) ? 'fully_paid' : 'pending_installments'
-            }
-          : course
-      );
-      
-      localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
-      setEnrolledCourses(updatedEnrollments);
-      
-      toast.success("Installment payment processed successfully!");
-    })
-    .catch(error => {
-      console.error('Installment payment processing error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to process installment payment');
-    })
-    .finally(() => {
-      // Reset processing state
-      setIsProcessingPayment(false);
-    });
   };
 
   const handleFundWallet = () => {
@@ -586,6 +468,8 @@ export default function MyCourses() {
     );
   };
 
+  const currencySymbol = settingsService.getDefaultCurrency() === 'NGN' ? '₦' : '$';
+
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
       {/* Header Section */}
@@ -687,6 +571,11 @@ export default function MyCourses() {
             <div className="max-w-md mx-auto space-y-4">
               <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground" />
               <h3 className="text-lg font-semibold">{error}</h3>
+              <p className="text-muted-foreground">
+                {searchQuery 
+                  ? "Try adjusting your search or filters"
+                  : "Start your learning journey by enrolling in a course"}
+              </p>
               <Button 
                 onClick={() => navigate('/dashboard/academy')}
                 className="text-white"
@@ -874,10 +763,98 @@ export default function MyCourses() {
 
       <InsufficientFundsModal
         open={showInsufficientFundsModal}
-        onOpenChange={setShowInsufficientFundsModal}
-        balance={balance}
+        onOpenChange={(open) => setShowInsufficientFundsModal(open)}
         requiredAmount={selectedCourse?.total_tuition || 0}
-        onFundWallet={handleFundWallet}
+        currentBalance={balance}
+        currencySymbol={currencySymbol}
+        onConfirmPayment={() => {
+          // This could be either full payment or installment payment
+          if (selectedPaymentPlan === 'full') {
+            handleFullPaymentConfirm();
+          } else {
+            // Process the first installment
+            const selectedInstallment = selectedCourse?.installments?.[0];
+            
+            if (!selectedCourse || !selectedInstallment) {
+              toast.error('Invalid course or installment');
+              return;
+            }
+
+            // Proceed with installment payment
+            setIsProcessingPayment(true);
+            
+            enrollmentService.processInstallmentPayment(
+              selectedCourse.course_id, 
+              selectedInstallment.id,
+              selectedInstallment.amount
+            )
+            .then(response => {
+              // Update local state to reflect installment payment
+              const updatedEnrollments = enrolledCourses.map(course => 
+                course.enrollment_id === selectedCourse.enrollment_id
+                  ? { 
+                      ...course, 
+                      installments: course.installments?.map(inst => 
+                        inst.id === selectedInstallment.id 
+                          ? { 
+                              ...response.installment,
+                              number: inst.number,
+                              paid: response.installment.status === 'paid',
+                              overdue: response.installment.status === 'overdue'
+                            } 
+                          : inst
+                      ),
+                      // Update payment status if all installments are paid
+                      payment_status: course.installments?.every(inst => 
+                        inst.id === selectedInstallment.id || inst.status === 'paid'
+                      ) ? 'fully_paid' : 'pending_installments'
+                    }
+                  : course
+              );
+
+              // Update localStorage
+              const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
+              const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
+                course.enrollment_id === selectedCourse.enrollment_id
+                  ? { 
+                      ...course, 
+                      installments: course.installments?.map(inst => 
+                        inst.id === selectedInstallment.id 
+                          ? { 
+                              ...response.installment,
+                              number: inst.number,
+                              paid: response.installment.status === 'paid',
+                              overdue: response.installment.status === 'overdue'
+                            } 
+                          : inst
+                      ),
+                      // Update payment status if all installments are paid
+                      payment_status: course.installments?.every(inst => 
+                        inst.id === selectedInstallment.id || inst.status === 'paid'
+                      ) ? 'fully_paid' : 'pending_installments'
+                    }
+                  : course
+              );
+              
+              localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
+              setEnrolledCourses(updatedEnrollments);
+              
+              // Close the modal
+              setShowInsufficientFundsModal(false);
+              
+              toast.success("Installment payment processed successfully!");
+            })
+            .catch(error => {
+              console.error('Installment payment processing error:', error);
+              toast.error(error instanceof Error ? error.message : 'Failed to process installment payment');
+            })
+            .finally(() => {
+              // Reset processing state
+              setIsProcessingPayment(false);
+            });
+          }
+        }}
+        isProcessingPayment={isProcessingPayment}
       />
 
       <FullPaymentConfirmModal 
