@@ -37,25 +37,20 @@ import { enrollmentService } from '@/services/enrollmentService';
 import { Loader2 } from 'lucide-react';
 
 interface EnrolledCourse {
-  courseId: string;
-  enrollmentDate: string;
-  transactionId: string;
-  userId: string;
-  tuitionPaid: boolean;
-  tuitionFee: number;
-  course?: Course;
-  progress?: number;
-  lastAccessed?: string;
-  nextLesson?: string;
-  nextDeadline?: string;
-  paymentPlan?: 'full' | 'installment';
-  installments?: {
-    number: 1 | 2;
+  enrollment_id: string;
+  course_id: string;
+  course_title: string;
+  course_image: string;
+  enrollment_status: string;
+  payment_status: 'not_started' | 'partially_paid' | 'fully_paid' | 'overdue';
+  total_tuition: number;
+  paid_amount: number;
+  installments: {
+    id: string;
     amount: number;
-    dueDate: string;
-    paid: boolean;
-    paidDate: string | null;
-    overdue: boolean;
+    due_date: string;
+    status: string;
+    paid_at: string | null;
   }[];
 }
 
@@ -169,18 +164,18 @@ export default function MyCourses() {
   // Filter and sort courses
   const filteredCourses = enrolledCourses
     .filter(enrollment => {
-      const matchesSearch = enrollment.course?.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = enrollment.course_title.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === "all" 
-        || (statusFilter === "completed" && enrollment.progress === 100)
-        || (statusFilter === "in-progress" && enrollment.progress! < 100);
+        || (statusFilter === "completed" && enrollment.enrollment_status === "completed")
+        || (statusFilter === "in-progress" && enrollment.enrollment_status === "in_progress");
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
       if (sortBy === "recent") {
-        return new Date(b.enrollmentDate).getTime() - new Date(a.enrollmentDate).getTime();
+        return new Date(b.enrollment_status).getTime() - new Date(a.enrollment_status).getTime();
       }
       if (sortBy === "progress") {
-        return (b.progress || 0) - (a.progress || 0);
+        return (b.paid_amount || 0) - (a.paid_amount || 0);
       }
       return 0;
     });
@@ -221,7 +216,7 @@ export default function MyCourses() {
     if (!processingCourse || !user) return;
 
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    const fullAmount = processingCourse.tuitionFee;
+    const fullAmount = processingCourse.total_tuition;
     const installmentAmount = fullAmount / 2;
 
     if (selectedPaymentPlan === 'full') {
@@ -240,19 +235,17 @@ export default function MyCourses() {
         id: `TRX-${Date.now()}`,
         type: 'debit',
         amount: fullAmount,
-        description: `Full tuition payment for ${processingCourse.course?.title}`,
+        description: `Full tuition payment for ${processingCourse.course_title}`,
         date: new Date().toISOString()
       });
 
       // Update enrollment with full payment status
       const updatedEnrollments = enrolledCourses.map(course => 
-        course.courseId === processingCourse.courseId && course.userId === user.id
+        course.enrollment_id === processingCourse.enrollment_id
           ? { 
               ...course, 
-              paymentPlan: 'full' as const,
-              tuitionPaid: true,
-              dueDate: dueDate,
-              amount: fullAmount
+              payment_status: 'fully_paid',
+              paid_amount: fullAmount
             }
           : course
       );
@@ -260,13 +253,11 @@ export default function MyCourses() {
       // Update localStorage
       const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
       const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-        course.courseId === processingCourse.courseId && course.userId === user.id
+        course.enrollment_id === processingCourse.enrollment_id
           ? { 
               ...course, 
-              paymentPlan: 'full' as const,
-              tuitionPaid: true,
-              dueDate: dueDate,
-              amount: fullAmount
+              payment_status: 'fully_paid',
+              paid_amount: fullAmount
             }
           : course
       );
@@ -278,28 +269,24 @@ export default function MyCourses() {
     } else {
       // Set up installment plan
       const updatedEnrollments = enrolledCourses.map(course => 
-        course.courseId === processingCourse.courseId && course.userId === user.id
+        course.enrollment_id === processingCourse.enrollment_id
           ? { 
               ...course, 
-              paymentPlan: 'installment' as const,
-              tuitionFee: fullAmount, // Store full amount
-              tuitionPaid: false,
+              payment_status: 'partially_paid',
               installments: [
                 {
-                  number: 1 as const,
+                  id: `INST-${Date.now()}`,
                   amount: installmentAmount,
-                  dueDate: new Date().toISOString(),
-                  paid: false,
-                  paidDate: null,
-                  overdue: false
+                  due_date: new Date().toISOString(),
+                  status: 'pending',
+                  paid_at: null
                 },
                 {
-                  number: 2 as const,
+                  id: `INST-${Date.now() + 1}`,
                   amount: installmentAmount,
-                  dueDate: dueDate,
-                  paid: false,
-                  paidDate: null,
-                  overdue: false
+                  due_date: dueDate,
+                  status: 'pending',
+                  paid_at: null
                 }
               ]
             }
@@ -309,28 +296,24 @@ export default function MyCourses() {
       // Update localStorage
       const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
       const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-        course.courseId === processingCourse.courseId && course.userId === user.id
+        course.enrollment_id === processingCourse.enrollment_id
           ? { 
               ...course, 
-              paymentPlan: 'installment' as const,
-              tuitionFee: fullAmount, // Store full amount
-              tuitionPaid: false,
+              payment_status: 'partially_paid',
               installments: [
                 {
-                  number: 1 as const,
+                  id: `INST-${Date.now()}`,
                   amount: installmentAmount,
-                  dueDate: new Date().toISOString(),
-                  paid: false,
-                  paidDate: null,
-                  overdue: false
+                  due_date: new Date().toISOString(),
+                  status: 'pending',
+                  paid_at: null
                 },
                 {
-                  number: 2 as const,
+                  id: `INST-${Date.now() + 1}`,
                   amount: installmentAmount,
-                  dueDate: dueDate,
-                  paid: false,
-                  paidDate: null,
-                  overdue: false
+                  due_date: dueDate,
+                  status: 'pending',
+                  paid_at: null
                 }
               ]
             }
@@ -347,18 +330,18 @@ export default function MyCourses() {
     setProcessingCourse(null);
   };
 
-  const handleInstallmentPayment = (enrollment: EnrolledCourse, installmentNumber: 1 | 2) => {
+  const handleInstallmentPayment = (enrollment: EnrolledCourse, installmentId: string) => {
     if (!user || !enrollment.installments) return;
     
-    const installment = enrollment.installments.find(i => i.number === installmentNumber);
-    if (!installment || installment.paid) return;
+    const installment = enrollment.installments.find(i => i.id === installmentId);
+    if (!installment || installment.status === 'paid') return;
 
     const installmentAmount = installment.amount;
 
     if (balance < installmentAmount) {
       setSelectedCourse({
         ...enrollment,
-        tuitionFee: installmentAmount
+        total_tuition: installmentAmount
       });
       setShowInsufficientFundsModal(true);
       return;
@@ -372,27 +355,28 @@ export default function MyCourses() {
       id: `TRX-${Date.now()}`,
       type: 'debit',
       amount: installmentAmount,
-      description: `Installment ${installmentNumber} for ${enrollment.course?.title}`,
+      description: `Installment payment for ${enrollment.course_title}`,
       date: new Date().toISOString()
     });
 
     // Update installment status
     const updatedInstallments = enrollment.installments.map(i => 
-      i.number === installmentNumber
-        ? { ...i, paid: true, paidDate: new Date().toISOString() }
+      i.id === installmentId
+        ? { ...i, status: 'paid', paid_at: new Date().toISOString() }
         : i
     );
 
     // Check if all installments are paid
-    const allPaid = updatedInstallments.every(i => i.paid);
+    const allPaid = updatedInstallments.every(i => i.status === 'paid');
 
     // Update enrollment
     const updatedEnrollments = enrolledCourses.map(course => 
-      course.courseId === enrollment.courseId && course.userId === user.id
+      course.enrollment_id === enrollment.enrollment_id
         ? { 
             ...course, 
             installments: updatedInstallments,
-            tuitionPaid: allPaid
+            payment_status: allPaid ? 'fully_paid' : 'partially_paid',
+            paid_amount: course.paid_amount + installmentAmount
           }
         : course
     );
@@ -400,18 +384,19 @@ export default function MyCourses() {
     // Update localStorage
     const allEnrollments = JSON.parse(localStorage.getItem('enrollments') || '[]');
     const updatedAllEnrollments = allEnrollments.map((course: EnrolledCourse) =>
-      course.courseId === enrollment.courseId && course.userId === user.id
+      course.enrollment_id === enrollment.enrollment_id
         ? { 
             ...course, 
             installments: updatedInstallments,
-            tuitionPaid: allPaid
+            payment_status: allPaid ? 'fully_paid' : 'partially_paid',
+            paid_amount: course.paid_amount + installmentAmount
           }
         : course
     );
     localStorage.setItem('enrollments', JSON.stringify(updatedAllEnrollments));
     setEnrolledCourses(updatedEnrollments);
 
-    toast.success(`Installment ${installmentNumber} paid successfully!`);
+    toast.success(`Installment paid successfully!`);
   };
 
   const handleFundWallet = () => {
@@ -532,21 +517,21 @@ export default function MyCourses() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredCourses.map((enrollment) => (
-            <Card key={enrollment.courseId} className="group hover:shadow-lg transition-shadow">
+            <Card key={enrollment.enrollment_id} className="group hover:shadow-lg transition-shadow">
               <CardContent className="p-0">
                 {/* Course Image */}
                 <div className="relative aspect-video">
                   <img 
-                    src={enrollment.course?.image}
-                    alt={enrollment.course?.title}
+                    src={enrollment.course_image}
+                    alt={enrollment.course_title}
                     className="object-cover w-full h-full rounded-t-lg"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <Badge 
                     className="absolute top-4 right-4"
-                    variant={enrollment.tuitionPaid ? "default" : "destructive"}
+                    variant={enrollment.payment_status === 'fully_paid' ? "default" : "destructive"}
                   >
-                    {enrollment.tuitionPaid ? "Paid" : "Payment Required"}
+                    {enrollment.payment_status === 'fully_paid' ? "Paid" : "Payment Required"}
                   </Badge>
                 </div>
 
@@ -554,11 +539,11 @@ export default function MyCourses() {
                 <div className="p-6 space-y-4">
                   <div>
                     <h3 className="font-semibold text-lg mb-1 line-clamp-1">
-                      {enrollment.course?.title}
+                      {enrollment.course_title}
                     </h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      <span>Last accessed {new Date(enrollment.lastAccessed!).toLocaleDateString()}</span>
+                      <span>Last accessed {new Date(enrollment.enrollment_status).toLocaleDateString()}</span>
                     </div>
                   </div>
 
@@ -566,9 +551,9 @@ export default function MyCourses() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Progress</span>
-                      <span className="text-primary">{enrollment.progress}%</span>
+                      <span className="text-primary">{enrollment.paid_amount}%</span>
                     </div>
-                    <Progress value={enrollment.progress} className="h-2" />
+                    <Progress value={enrollment.paid_amount} className="h-2" />
                   </div>
 
                   {/* Next Up Section */}
@@ -577,7 +562,7 @@ export default function MyCourses() {
                       <BookOpen className="h-4 w-4 mt-0.5 text-muted-foreground" />
                       <div>
                         <p className="text-muted-foreground">Next Lesson</p>
-                        <p className="font-medium line-clamp-1">{enrollment.nextLesson}</p>
+                        <p className="font-medium line-clamp-1">Lesson 1</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2 text-sm">
@@ -585,61 +570,61 @@ export default function MyCourses() {
                       <div>
                         <p className="text-muted-foreground">Next Deadline</p>
                         <p className="font-medium">
-                          {new Date(enrollment.nextDeadline!).toLocaleDateString()}
+                          {enrollment.installments && enrollment.installments.length > 0 
+                            ? new Date(enrollment.installments[0].due_date).toLocaleDateString() 
+                            : 'No upcoming deadline'}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Payment Section - Add this before Action Buttons */}
-                  {!enrollment.tuitionPaid && (
+                  {enrollment.payment_status !== 'fully_paid' && (
                     <div className="space-y-3 pt-2 border-t">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-sm text-muted-foreground">Tuition Fee</p>
-                          <p className="text-lg font-bold">{formatCurrency(enrollment.tuitionFee)}</p>
+                          <p className="text-sm text-muted-foreground">Total Tuition</p>
+                          <p className="text-lg font-bold">{formatCurrency(enrollment.total_tuition)}</p>
                         </div>
                         <Badge variant="destructive">Payment Required</Badge>
                       </div>
                       
-                      {enrollment.paymentPlan === 'installment' ? (
-                        <div className="space-y-3">
-                          {enrollment.installments?.map((installment) => (
-                            <div key={installment.number} className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="text-sm">Installment {installment.number}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Due: {new Date(installment.dueDate).toLocaleDateString()}
-                                  </p>
-                                </div>
-                                <Badge 
-                                  variant={
-                                    installment.paid ? "default" : 
-                                    installment.overdue ? "destructive" : 
-                                    "secondary"
-                                  }
-                                >
-                                  {installment.paid ? "Paid" : installment.overdue ? "Overdue" : "Pending"}
-                                </Badge>
+                      {enrollment.installments && enrollment.installments.length > 0 ? (
+                        enrollment.installments.map((installment) => (
+                          <div key={installment.id} className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm">Installment {installment.id}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Due: {new Date(installment.due_date).toLocaleDateString()}
+                                </p>
                               </div>
-                              {!installment.paid && (
-                                <Button 
-                                  className="w-full text-white"
-                                  onClick={() => handleInstallmentPayment(enrollment, installment.number)}
-                                >
-                                  Pay {formatCurrency(installment.amount)}
-                                </Button>
-                              )}
+                              <Badge 
+                                variant={
+                                  installment.status === 'paid' ? "default" : 
+                                  installment.status === 'overdue' ? "destructive" : 
+                                  "secondary"
+                                }
+                              >
+                                {installment.status === 'paid' ? "Paid" : installment.status === 'overdue' ? "Overdue" : "Pending"}
+                              </Badge>
                             </div>
-                          ))}
-                        </div>
+                            {installment.status !== 'paid' && (
+                              <Button 
+                                className="w-full text-white"
+                                onClick={() => handleInstallmentPayment(enrollment, installment.id)}
+                              >
+                                Pay {formatCurrency(installment.amount)}
+                              </Button>
+                            )}
+                          </div>
+                        ))
                       ) : (
                         <Button 
                           className="w-full text-white"
                           onClick={() => handlePayment(enrollment)}
                         >
-                          Pay Tuition Fee
+                          Pay Full Tuition
                         </Button>
                       )}
                     </div>
@@ -649,7 +634,7 @@ export default function MyCourses() {
                   <div className="flex gap-2 pt-4 border-t">
                     <Button 
                       className="flex-1 text-white"
-                      onClick={() => navigate(`/dashboard/academy/${enrollment.courseId}/manage`)}
+                      onClick={() => navigate(`/dashboard/academy/${enrollment.course_id}/manage`)}
                     >
                       <>
                         Manage Course
@@ -699,7 +684,7 @@ export default function MyCourses() {
         open={showInsufficientFundsModal}
         onClose={() => setShowInsufficientFundsModal(false)}
         onFundWallet={handleFundWallet}
-        requiredAmount={selectedCourse?.tuitionFee || 0}
+        requiredAmount={selectedCourse?.total_tuition || 0}
         currentBalance={balance}
         type="tuition"
       />

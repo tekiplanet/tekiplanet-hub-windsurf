@@ -62,23 +62,72 @@ class EnrollmentController extends Controller
             'username' => $user->username
         ]);
 
-        $enrollments = $user->enrollments()->with('course')->get();
+        // Eager load course and installments
+        $enrollments = $user->enrollments()->with(['course', 'installments'])->get();
+
+        $enrichedEnrollments = $enrollments->map(function($enrollment) {
+            // Calculate overall payment status
+            $installments = $enrollment->installments;
+            $paymentStatus = $this->calculateOverallPaymentStatus($installments);
+
+            // Calculate total tuition and paid amount
+            $totalTuition = optional($enrollment->course)->tuition_fee ?? 0;
+            $paidAmount = $installments->where('status', 'paid')->sum('amount');
+
+            return [
+                'enrollment_id' => $enrollment->id,
+                'course_id' => $enrollment->course_id,
+                'course_title' => optional($enrollment->course)->title,
+                'course_image' => optional($enrollment->course)->image_url,
+                'enrollment_status' => $enrollment->status,
+                'payment_status' => $paymentStatus,
+                'total_tuition' => $totalTuition,
+                'paid_amount' => $paidAmount,
+                'installments' => $installments->map(function($installment) {
+                    return [
+                        'id' => $installment->id,
+                        'amount' => $installment->amount,
+                        'due_date' => $installment->due_date,
+                        'status' => $installment->status,
+                        'paid_at' => $installment->paid_at,
+                    ];
+                }),
+            ];
+        });
 
         Log::info('Enrollment query results', [
-            'total_enrollments' => $enrollments->count(),
-            'enrollment_details' => $enrollments->map(function($enrollment) {
-                return [
-                    'enrollment_id' => $enrollment->id,
-                    'course_id' => $enrollment->course_id,
-                    'course_title' => optional($enrollment->course)->title,
-                    'status' => $enrollment->status
-                ];
-            })
+            'total_enrollments' => $enrichedEnrollments->count(),
         ]);
 
         return response()->json([
             'success' => true,
-            'enrollments' => $enrollments
+            'enrollments' => $enrichedEnrollments
         ]);
+    }
+
+    // Helper method to calculate overall payment status
+    private function calculateOverallPaymentStatus($installments)
+    {
+        if ($installments->isEmpty()) {
+            return 'not_started';
+        }
+
+        $totalInstallments = $installments->count();
+        $paidInstallments = $installments->where('status', 'paid')->count();
+
+        if ($paidInstallments == $totalInstallments) {
+            return 'fully_paid';
+        }
+
+        $overdueInstallments = $installments->filter(function($installment) {
+            return $installment->status !== 'paid' && 
+                   now()->greaterThan($installment->due_date);
+        })->count();
+
+        if ($overdueInstallments > 0) {
+            return 'overdue';
+        }
+
+        return 'partially_paid';
     }
 }

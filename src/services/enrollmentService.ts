@@ -1,13 +1,32 @@
 import apiClient, { isAxiosError } from '@/lib/axios';
 
 export interface Enrollment {
-  id: string;
-  user_id: string;
+  enrollment_id: string;
   course_id: string;
-  status: 'active' | 'completed' | 'dropped';
+  course_title: string;
+  course_image: string;
+  enrollment_status: 'active' | 'completed' | 'dropped';
+  payment_status: 'not_started' | 'partially_paid' | 'fully_paid' | 'overdue';
+  total_tuition: number;
+  paid_amount: number;
   progress: number;
-  enrolled_at: string;
-  completed_at?: string;
+  lastAccessed: string;
+  nextLesson: string;
+  nextDeadline: string;
+  paymentPlan: 'full' | 'installment';
+  installments: {
+    id: string;
+    amount: number;
+    due_date: string;
+    status: string;
+    paid_at: string | null;
+  }[];
+  course: {
+    id: string;
+    title: string;
+    image: string;
+    price: number;
+  };
 }
 
 export interface EnrolledCourse {
@@ -87,23 +106,28 @@ export const enrollmentService = {
       const enrolledCourses = response.data.enrollments.map((enrollment: any) => {
         console.log('Individual enrollment:', enrollment);
         return {
-          courseId: enrollment.course_id,
-          enrollmentDate: enrollment.enrolled_at,
-          transactionId: enrollment.id,
-          userId: enrollment.user_id,
-          tuitionPaid: enrollment.status === 'active',
-          tuitionFee: enrollment.course.price,
+          enrollment_id: enrollment.enrollment_id,
+          course_id: enrollment.course_id,
+          course_title: enrollment.course_title,
+          course_image: enrollment.course_image,
+          enrollment_status: enrollment.enrollment_status,
+          payment_status: enrollment.payment_status,
+          total_tuition: enrollment.total_tuition || 0,
+          paid_amount: enrollment.paid_amount || 0,
+          installments: enrollment.installments || [],
           course: {
-            id: enrollment.course.id,
-            title: enrollment.course.title,
-            image: enrollment.course.image_url,
+            id: enrollment.course_id,
+            title: enrollment.course_title,
+            image: enrollment.course_image,
+            price: enrollment.total_tuition || 0
           },
-          progress: parseFloat(enrollment.progress) * 100, // Convert to percentage
-          lastAccessed: enrollment.updated_at,
+          progress: enrollment.paid_amount || 0,
+          lastAccessed: new Date().toISOString(),
           nextLesson: 'Introduction to the Course', // Placeholder
-          nextDeadline: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(), // 7 days from now
-          paymentPlan: 'full', // Default to full payment
-          installments: [] // Placeholder for future installment logic
+          nextDeadline: enrollment.installments && enrollment.installments.length > 0 
+            ? enrollment.installments[0].due_date 
+            : new Date(new Date().setDate(new Date().getDate() + 7)).toISOString(),
+          paymentPlan: enrollment.payment_status === 'fully_paid' ? 'full' : 'installment'
         };
       });
 
