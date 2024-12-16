@@ -221,21 +221,60 @@ export default function CourseDetails() {
   }
 
   const handleConfirmEnrollment = async () => {
+    if (!user || !course) {
+      toast.error('Please log in to enroll');
+      return;
+    }
+
+    // Check wallet balance first
+    if (walletBalance < ENROLLMENT_FEE) {
+      setShowInsufficientFundsModal(true);
+      return;
+    }
+
+    // Check if already enrolled
     try {
-      setLoading(true);
-      const response = await enrollmentService.enrollInCourse(course.id);
-      
+      const existingEnrollments = await enrollmentService.getUserEnrollments();
+      const isAlreadyEnrolled = existingEnrollments.some(
+        enrollment => enrollment.course_id === courseId
+      );
+
+      if (isAlreadyEnrolled) {
+        toast.info('You are already enrolled in this course', {
+          description: 'Continue learning in My Courses'
+        });
+        setShowConfirmEnrollmentModal(false);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking existing enrollments:', error);
+    }
+
+    // Proceed with enrollment
+    setLoading(true);
+    try {
+      const response: EnrollmentResponse = await enrollmentService.enrollInCourse(courseId!);
+
       if (response.success) {
-        toast.success('Successfully enrolled in the course!');
+        // Deduct enrollment fee from wallet
+        const { deductBalance } = useWalletStore.getState();
+        deductBalance(user.id, ENROLLMENT_FEE);
+
+        toast.success('Course Enrollment Successful!', {
+          description: `You are now enrolled in ${course.title}`
+        });
+
+        // Navigate to My Courses
         navigate('/dashboard/academy/my-courses');
       } else {
-        toast.error(response.message || 'Failed to enroll in the course');
+        toast.error(response.message || 'Enrollment failed');
       }
     } catch (error) {
       console.error('Enrollment error:', error);
       toast.error('An unexpected error occurred during enrollment');
     } finally {
       setLoading(false);
+      setShowConfirmEnrollmentModal(false);
     }
   };
 

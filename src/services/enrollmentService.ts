@@ -21,10 +21,43 @@ export interface EnrolledCourse {
 export const enrollmentService = {
   async enrollInCourse(courseId: string) {
     try {
+      // First, check if already enrolled
+      const existingEnrollments = await this.getUserEnrollments();
+      const isAlreadyEnrolled = existingEnrollments.some(
+        enrollment => enrollment.course_id === courseId
+      );
+
+      if (isAlreadyEnrolled) {
+        return {
+          success: false,
+          message: 'You are already enrolled in this course',
+          data: null
+        };
+      }
+
+      // Proceed with enrollment if not already enrolled
       const response = await apiClient.post('/api/enrollments/enroll', { course_id: courseId });
-      return response.data;
+      
+      return {
+        success: true,
+        message: 'Successfully enrolled in the course',
+        data: {
+          transactionId: response.data.enrollment_id,
+          courseId: courseId,
+          amount: response.data.enrollment_fee || 1000
+        }
+      };
     } catch (error) {
       if (isAxiosError(error)) {
+        // Check for specific error codes or messages
+        if (error.response?.status === 409) {
+          return {
+            success: false,
+            message: 'You are already enrolled in this course',
+            data: null
+          };
+        }
+        
         throw new Error(error.response?.data.message || 'Failed to enroll in course');
       }
       throw error;
