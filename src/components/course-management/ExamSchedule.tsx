@@ -35,10 +35,10 @@ const getStatusColor = (status: string) => {
     }
 };
 
-const ExamSchedule: React.FC<{ 
+export default function ExamSchedule({ courseId, refreshExams }: { 
     courseId?: string, 
     refreshExams?: () => void 
-}> = ({ courseId, refreshExams }) => {
+}) {
     const [exams, setExams] = useState<Exam[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -91,6 +91,24 @@ const ExamSchedule: React.FC<{
                (exam.attempts && exam.attempts > 0);
     };
 
+    // Helper function to determine if an exam is in progress
+    const isExamInProgress = (exam: Exam): boolean => {
+        // If exam date is not set, it can't be in progress
+        if (!exam.date) return false;
+
+        const now = new Date();
+        const examDate = new Date(exam.date);
+
+        // Normalize dates to compare just the date part
+        const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const examDateOnly = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+
+        // Check if the exam date is today
+        return nowDate.getTime() === examDateOnly.getTime() && 
+               // And the user has an existing exam attempt or record
+               (exam.attempts && exam.attempts > 0);
+    };
+
     useEffect(() => {
         const fetchExams = async () => {
             if (!courseId) {
@@ -109,7 +127,7 @@ const ExamSchedule: React.FC<{
                     : [];
 
                 // Transform exams to ensure topics is always an array
-                // And update status for missed and upcoming exams
+                // And update status for missed, upcoming, and in_progress exams
                 const transformedExams = fetchedExams.map(exam => {
                     const transformedExam = {
                         ...exam,
@@ -126,6 +144,10 @@ const ExamSchedule: React.FC<{
                     // Update status to upcoming if applicable
                     else if (isExamUpcoming(transformedExam)) {
                         transformedExam.userExamStatus = 'upcoming';
+                    }
+                    // Update status to in_progress if applicable
+                    else if (isExamInProgress(transformedExam)) {
+                        transformedExam.userExamStatus = 'in_progress';
                     }
 
                     return transformedExam;
@@ -271,5 +293,3 @@ const ExamSchedule: React.FC<{
         </div>
     );
 };
-
-export default ExamSchedule;
