@@ -115,83 +115,20 @@ const ServiceQuoteRequest: React.FC = () => {
     fetchServiceQuoteDetails();
   }, [serviceId]);
 
-  // Permanent fields schema generation
-  const permanentFieldsSchema = z.object({
-    industry: z.string().min(1, "Industry/Sector is required"),
-    budgetRange: z.string().min(1, "Estimated Budget Range is required"),
-    contactMethod: z.string().min(1, "Preferred Contact Method is required"),
-    projectDescription: z.string().min(10, "Project description must be at least 10 characters"),
-    projectDeadline: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Estimated Project Timeline is required" })
+  const formSchema = z.object({
+    industry: z.string().min(1, { message: "Industry is required" }),
+    budgetRange: z.string().min(1, { message: "Budget range is required" }),
+    contactMethod: z.string().min(1, { message: "Contact method is required" }),
+    projectDescription: z.string().min(10, { message: "Project description is required (minimum 10 characters)" }),
+    projectDeadline: z.date({ required_error: "Project deadline is required" }),
+    dynamicFields: z.record(z.string(), z.union([
+      z.string(), 
+      z.array(z.string()), 
+      z.boolean(), 
+      z.number(),
+      z.date()
+    ]).optional()).optional()
   });
-
-  // Dynamically generate form schema based on quote fields
-  const generateFormSchema = () => {
-    const dynamicFieldsSchema = quoteFields.reduce((acc, field) => {
-      const fieldLabel = field.label;
-      
-      let fieldSchema: z.ZodType;
-      
-      switch(field.type) {
-        case 'text':
-        case 'phone':
-          fieldSchema = field.required 
-            ? z.string().min(1, `${fieldLabel} is required`) 
-            : z.string().optional();
-          break;
-        case 'number':
-          fieldSchema = field.required 
-            ? z.string().refine(val => !isNaN(Number(val)), { message: `${fieldLabel} must be a number` })
-            : z.string().optional();
-          break;
-        case 'select':
-          fieldSchema = field.required 
-            ? z.string().min(1, `Please select a ${fieldLabel}`) 
-            : z.string().optional();
-          break;
-        case 'multi-select':
-          fieldSchema = field.required 
-            ? z.array(z.string()).min(1, `Please select at least one ${fieldLabel}`) 
-            : z.array(z.string()).optional();
-          break;
-        case 'radio':
-          fieldSchema = field.required 
-            ? z.string().min(1, `Please select a ${fieldLabel}`) 
-            : z.string().optional();
-          break;
-        case 'checkbox':
-          fieldSchema = field.required 
-            ? z.boolean().refine(val => val === true, { message: `${fieldLabel} must be checked` })
-            : z.boolean().optional();
-          break;
-        case 'email':
-          fieldSchema = field.required 
-            ? z.string().email(`Invalid ${fieldLabel}`) 
-            : z.string().email(`Invalid ${fieldLabel}`).optional();
-          break;
-        case 'textarea':
-          fieldSchema = field.required 
-            ? z.string().min(1, `${fieldLabel} is required`) 
-            : z.string().optional();
-          break;
-        case 'date':
-          fieldSchema = field.required 
-            ? z.string().refine(val => !isNaN(Date.parse(val)), { message: `${fieldLabel} must be a valid date` })
-            : z.string().optional();
-          break;
-        default:
-          fieldSchema = field.required 
-            ? z.string().min(1, `${fieldLabel} is required`) 
-            : z.string().optional();
-      }
-      
-      acc[field.id] = fieldSchema;
-      return acc;
-    }, {});
-
-    return permanentFieldsSchema.extend(dynamicFieldsSchema);
-  };
-
-  const formSchema = generateFormSchema();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -200,26 +137,8 @@ const ServiceQuoteRequest: React.FC = () => {
       budgetRange: '',
       contactMethod: '',
       projectDescription: '',
-      projectDeadline: '',
-      ...(quoteFields.length > 0 
-        ? quoteFields.reduce((acc, field) => {
-            switch(field.type) {
-              case 'multi-select':
-                acc[field.id] = [];
-                break;
-              case 'checkbox':
-                acc[field.id] = false;
-                break;
-              case 'number':
-              case 'date':
-                acc[field.id] = '';
-                break;
-              default:
-                acc[field.id] = '';
-            }
-            return acc;
-          }, {} as any)
-        : {})
+      projectDeadline: new Date(),
+      dynamicFields: {}
     }
   });
 
@@ -234,8 +153,10 @@ const ServiceQuoteRequest: React.FC = () => {
             acc[field.id] = false;
             break;
           case 'number':
+            acc[field.id] = 0;
+            break;
           case 'date':
-            acc[field.id] = '';
+            acc[field.id] = null;
             break;
           default:
             acc[field.id] = '';
@@ -243,7 +164,10 @@ const ServiceQuoteRequest: React.FC = () => {
         return acc;
       }, {} as any);
 
-      form.reset(defaultValues);
+      form.reset({ 
+        ...form.getValues(), 
+        dynamicFields: defaultValues 
+      });
     }
   }, [quoteFields, form.reset]);
 
@@ -270,10 +194,32 @@ const ServiceQuoteRequest: React.FC = () => {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Prepare dynamic fields
+    const processedDynamicFields = values.dynamicFields 
+      ? Object.fromEntries(
+          Object.entries(values.dynamicFields).map(([key, value]) => {
+            // Convert arrays to comma-separated strings
+            if (Array.isArray(value)) {
+              return [key, value.join(',')];
+            }
+            // Convert dates to formatted strings
+            if (value instanceof Date) {
+              return [key, format(value, 'yyyy-MM-dd')];
+            }
+            return [key, value];
+          })
+        )
+      : undefined;
+
     try {
       const response = await apiClient.post('/quotes', {
         service_id: serviceId,
-        ...values
+        industry: values.industry,
+        budget_range: values.budgetRange,
+        contact_method: values.contactMethod,
+        project_description: values.projectDescription,
+        project_deadline: format(values.projectDeadline, 'yyyy-MM-dd'),
+        quote_fields: processedDynamicFields
       });
 
       if (response.data.success) {
@@ -283,9 +229,22 @@ const ServiceQuoteRequest: React.FC = () => {
         // Redirect to quotes list
         navigate('/quote-requests');
       }
-    } catch (error) {
+    } catch (error: any) {
       // Handle submission error
-      toast.error('Failed to submit quote. Please try again.');
+      if (error.response && error.response.status === 422) {
+        // Validation errors
+        const errors = error.response.data.errors;
+        
+        // Display validation errors
+        Object.keys(errors).forEach(field => {
+          errors[field].forEach((errorMessage: string) => {
+            toast.error(`${field}: ${errorMessage}`);
+          });
+        });
+      } else {
+        // Generic error
+        toast.error('Failed to submit quote. Please try again.');
+      }
       console.error('Quote submission error:', error);
     }
   };
@@ -644,7 +603,7 @@ const ServiceQuoteRequest: React.FC = () => {
                         <FormField
                           key={field.id}
                           control={form.control}
-                          name={field.id}
+                          name={`dynamicFields.${field.id}`}
                           render={({ field: formField }) => (
                             <FormItem>
                               <FormLabel>

@@ -18,7 +18,16 @@ class QuoteController extends Controller
             'budget_range' => 'required|string',
             'contact_method' => 'required|string',
             'project_description' => 'required|string',
-            'project_deadline' => 'required|date',
+            'project_deadline' => 'required|date|after:today',
+        ], [
+            'service_id.required' => 'Service selection is required.',
+            'service_id.exists' => 'Selected service is invalid.',
+            'industry.required' => 'Industry is required.',
+            'budget_range.required' => 'Budget range is required.',
+            'contact_method.required' => 'Contact method is required.',
+            'project_description.required' => 'Project description is required.',
+            'project_deadline.required' => 'Project deadline is required.',
+            'project_deadline.after' => 'Project deadline must be a future date.',
         ]);
 
         if ($validator->fails()) {
