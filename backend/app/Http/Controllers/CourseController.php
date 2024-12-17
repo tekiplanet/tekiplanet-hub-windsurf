@@ -7,6 +7,8 @@ use App\Models\CourseExam;
 use App\Models\CourseFeature;
 use App\Models\CourseNotice;
 use App\Models\UserCourseNotice;
+use App\Models\Enrollment;
+use App\Models\UserCourseExam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -157,44 +159,45 @@ class CourseController extends Controller
     public function getCourseExams($courseId)
     {
         try {
-            // Find all exams for the specified course
+            // Get the authenticated user
+            $user = auth()->user();
+
+            // Find all exams for the specified course with user-specific details
             $exams = CourseExam::where('course_id', $courseId)
-                ->orderBy('created_at', 'asc')
-                ->get();
+                ->with(['userExams' => function($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                }])
+                ->get()
+                ->map(function($exam) use ($user) {
+                    // Get the user's exam attempt if exists
+                    $userExam = $exam->userExams->first();
 
-            // Transform exams to include additional details
-            $transformedExams = $exams->map(function($exam) {
-                // Determine exam status based on current date
-                $now = now();
-                $examDate = Carbon::parse($exam->date);
-                
-                $status = 'upcoming';
-                if ($examDate->isPast()) {
-                    $status = 'missed';
-                    
-                    // Check if exam has been completed
-                    if ($exam->score !== null) {
-                        $status = 'completed';
+                    // Determine display score
+                    $displayScore = null;
+                    if ($userExam) {
+                        if ($userExam->status === 'completed') {
+                            $displayScore = $userExam->score !== null 
+                                ? $userExam->score . ' / ' . $userExam->total_score 
+                                : 'Awaiting result';
+                        }
                     }
-                } elseif ($now->between($examDate, $examDate->copy()->addHours(2))) {
-                    $status = 'ongoing';
-                }
 
-                return [
-                    'id' => $exam->id,
-                    'title' => $exam->title,
-                    'type' => $exam->type,
-                    'date' => $exam->date,
-                    'duration' => $exam->duration,
-                    'status' => $status,
-                    'score' => $exam->score,
-                    'totalScore' => $exam->total_score,
-                    'topics' => $exam->topics ?? [],
-                    'instructions' => $exam->instructions
-                ];
-            });
+                    return [
+                        'id' => $exam->id,
+                        'title' => $exam->title,
+                        'description' => $exam->description,
+                        'type' => $exam->type,
+                        'date' => $exam->date,
+                        'duration' => $exam->duration,
+                        'difficulty' => $exam->difficulty,
+                        'userExamStatus' => $userExam ? $userExam->status : 'not_started',
+                        'score' => $displayScore,
+                        'attempts' => $userExam ? $userExam->attempts : 0,
+                        'topics' => $exam->topics,
+                    ];
+                });
 
-            return response()->json($transformedExams);
+            return response()->json($exams);
         } catch (\Exception $e) {
             // Log the error
             Log::error('Error fetching course exams: ' . $e->getMessage());
@@ -202,6 +205,69 @@ class CourseController extends Controller
             // Return an error response
             return response()->json([
                 'message' => 'Unable to fetch course exams',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function startExamParticipation(Request $request, $courseId, $examId)
+    {
+        try {
+            // Get the authenticated user
+            $user = auth()->user();
+
+            // Check if the user is already enrolled in the course
+            $enrollment = Enrollment::where('user_id', $user->id)
+                ->where('course_id', $courseId)
+                ->first();
+
+            if (!$enrollment) {
+                return response()->json([
+                    'message' => 'You must be enrolled in the course to take the exam'
+                ], 403);
+            }
+
+            // Check if the exam exists
+            $courseExam = CourseExam::findOrFail($examId);
+
+            // Check if the exam is for the correct course
+            if ($courseExam->course_id !== $courseId) {
+                return response()->json([
+                    'message' => 'Invalid exam for this course'
+                ], 400);
+            }
+
+            // Check if user has already started this exam
+            $existingAttempt = UserCourseExam::where('user_id', $user->id)
+                ->where('course_exam_id', $examId)
+                ->first();
+
+            if ($existingAttempt) {
+                return response()->json([
+                    'message' => 'You have already started this exam',
+                    'attempt' => $existingAttempt
+                ], 400);
+            }
+
+            // Create a new user course exam entry
+            $userCourseExam = UserCourseExam::create([
+                'user_id' => $user->id,
+                'course_exam_id' => $examId,
+                'status' => 'in_progress',
+                'started_at' => now(),
+                'attempts' => 1
+            ]);
+
+            return response()->json([
+                'message' => 'Exam participation started successfully',
+                'exam_attempt' => $userCourseExam
+            ], 201);
+        } catch (\Exception $e) {
+            // Log the error
+            Log::error('Error starting exam participation: ' . $e->getMessage());
+            
+            return response()->json([
+                'message' => 'Unable to start exam participation',
                 'error' => $e->getMessage()
             ], 500);
         }

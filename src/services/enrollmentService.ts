@@ -186,14 +186,10 @@ export const enrollmentService = {
   async getCourseExams(courseId: string) {
     try {
       const response = await apiClient.get(`/courses/${courseId}/exams`);
-      return response.data.map((exam: any) => ({
-        ...exam,
-        date: new Date(exam.date),
-        topics: exam.topics || []
-      }));
+      return response;
     } catch (error) {
       console.error('Error fetching course exams:', error);
-      return [];
+      throw error;
     }
   },
 
@@ -442,6 +438,18 @@ export const enrollmentService = {
         );
       }
       
+      throw error;
+    }
+  },
+
+  async startExamParticipation(courseId: string, examId: string) {
+    try {
+      const response = await apiClient.post(
+        `/courses/${courseId}/exams/${examId}/participate`
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error starting exam participation:', error);
       throw error;
     }
   },

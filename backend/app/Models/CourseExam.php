@@ -63,6 +63,11 @@ class CourseExam extends Model
         return $this->belongsTo(Course::class, 'course_id');
     }
 
+    public function userExams()
+    {
+        return $this->hasMany(UserCourseExam::class, 'course_exam_id');
+    }
+
     // Optional: Add a method to get exam status
     public function getStatusAttribute($value)
     {
