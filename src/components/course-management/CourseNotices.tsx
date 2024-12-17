@@ -177,27 +177,24 @@ export default function CourseNotices({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="outline" 
-                          className="text-xs"
-                        >
-                          {notice.type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(notice.date)}
-                        </span>
-                        {(notice.priority === 'high' || showFallbackNotices) && (
+                      {(notice.priority === 'high' || showFallbackNotices) && (
                           <Badge variant="destructive" className="text-xs">
                             {showFallbackNotices ? 'Fallback' : 'Important'}
                           </Badge>
                         )}
-                        <button 
-                          onClick={() => handleDeleteNotice(notice.id)}
-                          className="ml-auto text-muted-foreground hover:text-destructive transition-colors"
-                          title="Remove Notice"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(notice.date)}
+                        </span>
+  
+                        {!showFallbackNotices && (
+                          <button 
+                            onClick={() => handleDeleteNotice(notice.id)}
+                            className="ml-auto text-muted-foreground hover:text-destructive transition-colors"
+                            title="Remove Notice"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

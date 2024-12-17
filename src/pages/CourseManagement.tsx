@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, Bell, GraduationCap, FileText, BookOpen, Wallet } from "lucide-react";
+import PagePreloader from '@/components/ui/PagePreloader';
 
 // Components for each tab
 import PaymentInfo from '@/components/course-management/PaymentInfo';
@@ -48,6 +49,7 @@ const CourseManagement: React.FC = () => {
   const [enrollments, setEnrollments] = React.useState<any[]>([]);
   const [notices, setNotices] = React.useState<Notice[]>([]);
   const [noticesLoading, setNoticesLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const handleNoticeDelete = React.useCallback((noticeId: string) => {
     setNotices(prevNotices => 
@@ -57,6 +59,7 @@ const CourseManagement: React.FC = () => {
 
   React.useEffect(() => {
     const fetchCourseDetails = async () => {
+      setIsLoading(true);
       try {
         // Fetch user's enrollments first
         const fetchedEnrollments = await enrollmentService.getUserEnrollments();
@@ -84,6 +87,7 @@ const CourseManagement: React.FC = () => {
           console.warn('Enrollments:', JSON.stringify(enrollmentsArray, null, 2));
           console.warn('Current Course ID:', courseIdState);
           setErrorMessage('You are not enrolled in this course or your enrollment is not active');
+          setIsLoading(false);
           return;
         }
 
@@ -105,6 +109,8 @@ const CourseManagement: React.FC = () => {
           setErrorMessage('An unexpected error occurred');
         }
         toast.error('Failed to load course details');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -239,7 +245,12 @@ const CourseManagement: React.FC = () => {
     );
   };
 
-  // If no course found, keep existing not found logic
+  // If loading, show preloader
+  if (isLoading) {
+    return <PagePreloader />;
+  }
+
+  // If no course found after loading, show not found
   if (!course) {
     return (
       <div className="min-h-screen flex items-center justify-center">
