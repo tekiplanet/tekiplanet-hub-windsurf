@@ -109,6 +109,63 @@ export default function ExamSchedule({ courseId, refreshExams }: {
                (exam.attempts && exam.attempts > 0);
     };
 
+    // Helper function to determine if an exam is completed
+    const isExamCompleted = (exam: Exam): boolean => {
+        // If exam date is not set, it can't be completed
+        if (!exam.date) return false;
+
+        const now = new Date();
+        const examDate = new Date(exam.date);
+
+        // Normalize dates to compare just the date part
+        const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const examDateOnly = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+
+        // Check if the exam date is today or in the past
+        return (nowDate.getTime() >= examDateOnly.getTime()) && 
+               // And the user has an existing exam attempt
+               (exam.attempts && exam.attempts > 0) &&
+               // And the current status is already marked as completed
+               exam.userExamStatus === 'completed';
+    };
+
+    // Helper function to determine the exam score display
+    const getExamScoreDisplay = (exam: Exam): string => {
+        // Normalize dates to compare just the date part
+        const now = new Date();
+        const examDate = new Date(exam.date);
+        const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const examDateOnly = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+
+        // Check if the exam date is today or in the past
+        const isExamDatePassed = nowDate.getTime() >= examDateOnly.getTime();
+
+        // Check if the exam is completed or in progress and has attempts
+        const isCompletedOrInProgress = 
+            (exam.userExamStatus === 'completed' || exam.userExamStatus === 'in_progress') && 
+            exam.attempts && 
+            exam.attempts > 0;
+
+        // If exam is past or today, completed or in progress, and has attempts
+        if (isExamDatePassed && isCompletedOrInProgress) {
+            // If score is null or undefined, show "Awaiting Result"
+            if (exam.score == null) {
+                return "Awaiting Result";
+            }
+            
+            // If total score is available, display it
+            if (exam.totalScore != null) {
+                return `${exam.score} / ${exam.totalScore}`;
+            }
+            
+            // Fallback to just showing the score
+            return `${exam.score}`;
+        }
+
+        // Default case: no score to display
+        return "—";
+    };
+
     useEffect(() => {
         const fetchExams = async () => {
             if (!courseId) {
@@ -127,7 +184,7 @@ export default function ExamSchedule({ courseId, refreshExams }: {
                     : [];
 
                 // Transform exams to ensure topics is always an array
-                // And update status for missed, upcoming, and in_progress exams
+                // And update status for missed, upcoming, in_progress, and completed exams
                 const transformedExams = fetchedExams.map(exam => {
                     const transformedExam = {
                         ...exam,
@@ -137,8 +194,21 @@ export default function ExamSchedule({ courseId, refreshExams }: {
                         topics: parseTopics(exam.topics)
                     };
 
+                    // Normalize dates to compare just the date part
+                    const now = new Date();
+                    const examDate = new Date(transformedExam.date);
+                    const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const examDateOnly = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+
+                    // Check if the exam date is today
+                    const isExamToday = nowDate.getTime() === examDateOnly.getTime();
+
+                    // Prioritize completed status if exam is today and has completed status
+                    if (isExamToday && transformedExam.userExamStatus === 'completed') {
+                        transformedExam.userExamStatus = 'completed';
+                    }
                     // Update status to missed if applicable
-                    if (isExamMissed(transformedExam)) {
+                    else if (isExamMissed(transformedExam)) {
                         transformedExam.userExamStatus = 'missed';
                     } 
                     // Update status to upcoming if applicable
@@ -263,6 +333,23 @@ export default function ExamSchedule({ courseId, refreshExams }: {
                                     >
                                         {exam.userExamStatus}
                                     </Badge>
+
+                                    {/* Score Display */}
+                                    {((new Date().getTime() >= new Date(exam.date).getTime()) && 
+                                      (exam.userExamStatus === 'completed' || exam.userExamStatus === 'in_progress') && 
+                                      exam.attempts && 
+                                      exam.attempts > 0) && (
+                                        <div className="text-sm">
+                                            <span className="font-medium">Score: </span>
+                                            <span className={
+                                                getExamScoreDisplay(exam) === "Awaiting Result" 
+                                                    ? "text-yellow-600" 
+                                                    : "text-green-600"
+                                            }>
+                                                {getExamScoreDisplay(exam)}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Only show participate button if not started */}
