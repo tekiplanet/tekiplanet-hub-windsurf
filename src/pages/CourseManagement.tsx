@@ -377,11 +377,8 @@ const CourseManagement: React.FC = () => {
               <FileText className="h-4 w-4 mr-2" /> Exams
               {upcomingExamsCount > 0 && (
                 <span 
-                  className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full animate-pulse"
-                  title={`${upcomingExamsCount} upcoming exam${upcomingExamsCount > 1 ? 's' : ''}`}
-                >
-                  {upcomingExamsCount}
-                </span>
+                  className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full animate-pulse"
+                ></span>
               )}
             </TabsTrigger>
             <TabsTrigger value="payment">
