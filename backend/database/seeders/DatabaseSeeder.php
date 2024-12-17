@@ -17,6 +17,9 @@ use Database\Seeders\UserCourseNoticesSeeder;
 use Database\Seeders\UserSeeder;
 use Database\Seeders\CourseFeatureSeeder;
 use Database\Seeders\InstructorSeeder;
+use Database\Seeders\ServiceSeeder;
+use Database\Seeders\ServiceQuoteFieldSeeder;
+use Database\Seeders\ServiceCategorySeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -38,7 +41,10 @@ class DatabaseSeeder extends Seeder
             CourseNoticesSeeder::class,
             CourseSchedulesSeeder::class,
             CourseTopicsSeeder::class,
-            UserCourseNoticesSeeder::class
+            UserCourseNoticesSeeder::class,
+            ServiceCategorySeeder::class,
+            ServiceSeeder::class,
+            ServiceQuoteFieldSeeder::class,
         ]);
     }
 }

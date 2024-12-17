@@ -10,8 +10,8 @@ class Service extends Model
     use HasUuids;
 
     protected $fillable = [
+        'category_id',
         'name', 
-        'category', 
         'short_description', 
         'long_description', 
         'starting_price', 
@@ -23,6 +23,11 @@ class Service extends Model
         'is_featured' => 'boolean',
         'starting_price' => 'decimal:2'
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(ServiceCategory::class, 'category_id');
+    }
 
     public function quoteFields()
     {

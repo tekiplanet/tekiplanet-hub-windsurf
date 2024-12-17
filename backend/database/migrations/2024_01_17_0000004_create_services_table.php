@@ -10,14 +10,20 @@ return new class extends Migration
     {
         Schema::create('services', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->uuid('category_id');
             $table->string('name')->unique();
-            $table->string('category');
             $table->text('short_description')->nullable();
             $table->text('long_description')->nullable();
             $table->decimal('starting_price', 10, 2)->nullable();
             $table->string('icon_name')->nullable(); // Changed from icon_path to icon_name
             $table->boolean('is_featured')->default(false);
             $table->timestamps();
+
+            // Foreign key constraint
+            $table->foreign('category_id')
+                  ->references('id')
+                  ->on('service_categories')
+                  ->onDelete('cascade');
         });
     }
 
