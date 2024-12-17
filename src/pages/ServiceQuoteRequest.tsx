@@ -28,6 +28,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { settingsService } from '@/services/settingsService';
 
 interface ServiceQuoteField {
   id: string;
@@ -56,6 +57,26 @@ const ServiceQuoteRequest: React.FC = () => {
   const [quoteFields, setQuoteFields] = useState<ServiceQuoteField[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [defaultCurrency, setDefaultCurrency] = useState('USD');
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const allSettings = await settingsService.getAllSettings();
+        console.log('All Settings:', allSettings);
+        
+        const currency = await settingsService.getDefaultCurrency();
+        console.log('Default Currency from Service:', currency);
+        
+        setDefaultCurrency(currency);
+      } catch (error) {
+        console.error('Error fetching default currency:', error);
+        setDefaultCurrency('USD');
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     const fetchServiceQuoteDetails = async () => {
@@ -75,11 +96,18 @@ const ServiceQuoteRequest: React.FC = () => {
     fetchServiceQuoteDetails();
   }, [serviceId]);
 
+  // Permanent fields schema generation
+  const permanentFieldsSchema = z.object({
+    industry: z.string().min(1, "Industry/Sector is required"),
+    budgetRange: z.string().min(1, "Estimated Budget Range is required"),
+    contactMethod: z.string().min(1, "Preferred Contact Method is required"),
+    projectDescription: z.string().min(10, "Project description must be at least 10 characters"),
+    projectDeadline: z.string().refine(val => !isNaN(Date.parse(val)), { message: "Estimated Project Timeline is required" })
+  });
+
   // Dynamically generate form schema based on quote fields
   const generateFormSchema = () => {
-    const schemaFields: { [key: string]: z.ZodType } = {};
-    
-    quoteFields.forEach(field => {
+    const dynamicFieldsSchema = quoteFields.reduce((acc, field) => {
       const fieldLabel = field.label;
       
       let fieldSchema: z.ZodType;
@@ -137,34 +165,43 @@ const ServiceQuoteRequest: React.FC = () => {
             : z.string().optional();
       }
       
-      schemaFields[field.id] = fieldSchema;
-    });
+      acc[field.id] = fieldSchema;
+      return acc;
+    }, {});
 
-    return z.object(schemaFields);
+    return permanentFieldsSchema.extend(dynamicFieldsSchema);
   };
 
   const formSchema = generateFormSchema();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: quoteFields.length > 0 
-      ? quoteFields.reduce((acc, field) => {
-          switch(field.type) {
-            case 'multi-select':
-              acc[field.id] = [];
-              break;
-            case 'checkbox':
-              acc[field.id] = false;
-            case 'number':
-            case 'date':
-              acc[field.id] = '';
-              break;
-            default:
-              acc[field.id] = '';
-          }
-          return acc;
-        }, {} as any)
-      : {}
+    defaultValues: {
+      industry: '',
+      budgetRange: '',
+      contactMethod: '',
+      projectDescription: '',
+      projectDeadline: '',
+      ...(quoteFields.length > 0 
+        ? quoteFields.reduce((acc, field) => {
+            switch(field.type) {
+              case 'multi-select':
+                acc[field.id] = [];
+                break;
+              case 'checkbox':
+                acc[field.id] = false;
+                break;
+              case 'number':
+              case 'date':
+                acc[field.id] = '';
+                break;
+              default:
+                acc[field.id] = '';
+            }
+            return acc;
+          }, {} as any)
+        : {})
+    }
   });
 
   useEffect(() => {
@@ -217,6 +254,167 @@ const ServiceQuoteRequest: React.FC = () => {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Permanent Fields */}
+              <FormField
+                control={form.control}
+                name="industry"
+                render={({ field: formField }) => (
+                  <FormItem>
+                    <FormLabel>Industry/Sector <span className="text-red-500">*</span></FormLabel>
+                    <Select 
+                      onValueChange={formField.onChange} 
+                      defaultValue={formField.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your industry" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {[
+                          'Technology', 
+                          'Healthcare', 
+                          'Finance', 
+                          'Education', 
+                          'Retail', 
+                          'Manufacturing', 
+                          'Hospitality',
+                          'Real Estate',
+                          'Agriculture',
+                          'Construction',
+                          'Energy',
+                          'Transportation',
+                          'Media & Entertainment',
+                          'Telecommunications',
+                          'Consulting',
+                          'Non-Profit',
+                          'Government',
+                          'Automotive',
+                          'Aerospace',
+                          'Pharmaceuticals',
+                          'E-commerce',
+                          'Logistics',
+                          'Insurance',
+                          'Professional Services',
+                          'Environmental Services',
+                          'Sports & Fitness',
+                          'Art & Design',
+                          'Legal Services',
+                          'Research & Development',
+                          'Other'
+                        ].map((industry) => (
+                          <SelectItem key={industry} value={industry}>
+                            {industry}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="budgetRange"
+                render={({ field: formField }) => (
+                  <FormItem>
+                    <FormLabel>Estimated Budget Range <span className="text-red-500">*</span></FormLabel>
+                    <Select 
+                      onValueChange={formField.onChange} 
+                      defaultValue={formField.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={`Select budget range (${defaultCurrency})`} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {[
+                          `0-${defaultCurrency}10,000`, 
+                          `${defaultCurrency} 10,001-${defaultCurrency}50,000`, 
+                          `${defaultCurrency}50,001-${defaultCurrency}100,000`, 
+                          `${defaultCurrency}100,001-${defaultCurrency}500,000`, 
+                          `${defaultCurrency}500,001-${defaultCurrency}1,000,000`, 
+                          `${defaultCurrency}1,000,001-${defaultCurrency}5,000,000`, 
+                          `Over ${defaultCurrency}5,000,000`
+                        ].map((range) => (
+                          <SelectItem key={range} value={range}>
+                            {range}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contactMethod"
+                render={({ field: formField }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Contact Method <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <RadioGroup 
+                        onValueChange={formField.onChange} 
+                        defaultValue={formField.value}
+                        className="grid grid-cols-3 gap-4"
+                      >
+                        {['Email', 'Phone', 'WhatsApp'].map((method) => (
+                          <div key={method} className="flex items-center space-x-2">
+                            <RadioGroupItem value={method} id={`contactMethod-${method}`} />
+                            <label 
+                              htmlFor={`contactMethod-${method}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {method}
+                            </label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="projectDescription"
+                render={({ field: formField }) => (
+                  <FormItem>
+                    <FormLabel>Project/Service Description <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Provide a detailed description of your project or service requirements"
+                        {...formField} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="projectDeadline"
+                render={({ field: formField }) => (
+                  <FormItem>
+                    <FormLabel>Estimated Project Timeline/Deadline <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        {...formField} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Dynamic Fields from Database */}
               {quoteFields.map((field) => (
                 <FormField
                   key={field.id}
