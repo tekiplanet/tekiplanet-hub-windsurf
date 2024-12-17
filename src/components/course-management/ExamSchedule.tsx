@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { format } from 'date-fns';
 import { enrollmentService } from "@/services/enrollmentService";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from 'sonner';
 
 // Define interface for exam data
 interface Exam {
@@ -90,10 +90,8 @@ const ExamSchedule: React.FC<{
             } catch (error) {
                 console.error('Failed to fetch exams:', error);
                 setIsLoading(false);
-                toast({
-                    title: "Error",
-                    description: "Failed to load exams",
-                    variant: "destructive"
+                toast.error('Error Loading Exams', {
+                    description: 'Failed to load exams for this course'
                 });
                 // Set exams to empty array to prevent further errors
                 setExams([]);
@@ -104,6 +102,8 @@ const ExamSchedule: React.FC<{
     }, [courseId]);
 
     const handleParticipate = async (examId: string) => {
+        if (!courseId) return;
+
         try {
             setParticipatingExamId(examId);
             
@@ -111,10 +111,8 @@ const ExamSchedule: React.FC<{
             await enrollmentService.startExamParticipation(courseId, examId);
             
             // Show success toast
-            toast({
-                title: 'Exam Participation Started',
-                description: 'You have successfully started the exam.',
-                variant: 'success'
+            toast.success('Exam Started', {
+                description: 'You have successfully started the exam.'
             });
 
             // Refresh exams to update status
@@ -123,10 +121,8 @@ const ExamSchedule: React.FC<{
             }
         } catch (err: any) {
             // Show error toast
-            toast({
-                title: 'Error',
-                description: err.response?.data?.message || 'Failed to start exam',
-                variant: 'destructive'
+            toast.error('Error Starting Exam', {
+                description: err.response?.data?.message || 'Failed to start exam'
             });
         } finally {
             setParticipatingExamId(null);
