@@ -46,7 +46,7 @@ import { settingsService } from '@/services/settingsService';
 import { ArrowRightIcon, ArrowLeftIcon, CalendarIcon, CheckIcon } from 'lucide-react';
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
-import toast, { Toaster } from 'react-hot-toast';
+import { toast } from "sonner";
 
 interface ServiceQuoteField {
   id: string;
@@ -300,7 +300,6 @@ const ServiceQuoteRequest: React.FC = () => {
 
   return (
     <Dashboard>
-      <Toaster position="top-right" reverseOrder={false} />
       <div className="container mx-auto p-4 max-w-2xl">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
