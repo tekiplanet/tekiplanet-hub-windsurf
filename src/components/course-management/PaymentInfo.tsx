@@ -1,12 +1,70 @@
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { enrollmentService } from "@/services/enrollmentService";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from 'sonner';
 
-interface PaymentInfoProps {
-  enrollment: any; // Replace with proper type
+interface Installment {
+  id: string;
+  amount: number;
+  due_date: string;
+  status: string;
+  paid_at?: string;
 }
 
-const PaymentInfo = ({ enrollment }: PaymentInfoProps) => {
+interface PaymentInfoProps {
+  courseId: string;
+}
+
+const PaymentInfo: React.FC<PaymentInfoProps> = ({ courseId }) => {
+  const [installments, setInstallments] = useState<Installment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchInstallments = async () => {
+      try {
+        setIsLoading(true);
+        const data = await enrollmentService.getCourseInstallments(courseId);
+        setInstallments(data);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching installments:', err);
+        setError('Failed to load payment information');
+        setIsLoading(false);
+        toast.error('Error', { description: 'Failed to load payment information' });
+      }
+    };
+
+    fetchInstallments();
+  }, [courseId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-destructive p-8">
+        {error}
+      </div>
+    );
+  }
+
+  if (installments.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground p-8">
+        No installment information available
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -14,67 +72,32 @@ const PaymentInfo = ({ enrollment }: PaymentInfoProps) => {
           <CardTitle>Payment Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Enrollment Fee</p>
-              <p className="font-medium">{formatCurrency(5000)}</p>
+          {installments.map((installment) => (
+            <div key={installment.id} className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Installment {installment.id}
+                </p>
+                <p className="font-medium">{formatCurrency(installment.amount)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Due: {new Date(installment.due_date).toLocaleDateString()}
+                </p>
+              </div>
+              <Badge 
+                variant={
+                  installment.status === 'paid' ? "default" : 
+                  installment.status === 'overdue' ? "destructive" : 
+                  "secondary"
+                }
+              >
+                {installment.status}
+              </Badge>
             </div>
-            <Badge variant="default">Paid</Badge>
-          </div>
-          
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Tuition Fee</p>
-              <p className="font-medium">{formatCurrency(enrollment.tuitionFee)}</p>
-            </div>
-            <Badge 
-              variant={enrollment.tuitionPaid ? "default" : "secondary"}
-              className={!enrollment.tuitionPaid ? 'bg-primary text-white' : ''}
-            >
-              {enrollment.tuitionPaid ? "Paid" : "Pending"}
-            </Badge>
-          </div>
-
-          {enrollment.paymentPlan === 'installment' && enrollment.installments && (
-            <div className="space-y-4 mt-6">
-              <h3 className="font-medium">Installment Details</h3>
-              {enrollment.installments.map((installment: any) => (
-                <div key={installment.number} className="flex justify-between items-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Installment {installment.number}
-                    </p>
-                    <p className="font-medium">{formatCurrency(installment.amount)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Due: {new Date(installment.dueDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Badge 
-                    variant={
-                      installment.paid ? "default" : 
-                      installment.overdue ? "destructive" : 
-                      "secondary"
-                    }
-                  >
-                    {installment.paid ? "Paid" : installment.overdue ? "Overdue" : "Pending"}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Add payment history table here */}
+          ))}
         </CardContent>
       </Card>
     </div>
   );
 };
 
-export default PaymentInfo; 
+export default PaymentInfo;

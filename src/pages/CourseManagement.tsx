@@ -47,7 +47,7 @@ const CourseManagement: React.FC = () => {
   } | null>(null);
 
   const [errorMessage, setErrorMessage] = React.useState('');
-  const [enrollments, setEnrollments] = React.useState<any[]>([]);
+  // const [enrollments, setEnrollments] = React.useState<any[]>([]);
   const [notices, setNotices] = React.useState<Notice[]>([]);
   const [noticesLoading, setNoticesLoading] = React.useState(true);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -150,25 +150,62 @@ const CourseManagement: React.FC = () => {
     fetchCourseExams();
   }, [courseIdState, calculateUpcomingExams]);
 
+  // React.useEffect(() => {
+  //   const fetchCourseDetails = async () => {
+  //     setIsLoading(true);
+  //     try {
+  //       if (!courseIdState) return;
+
+  //       const courseDetails = await courseManagementService.getCourseDetails(courseIdState);
+  //       setCourseDetails(courseDetails);
+  //       setEnrollment(courseDetails.enrollment);
+
+  //       setIsLoading(false);
+  //     } catch (error) {
+  //       console.error('Error fetching course details:', error);
+  //       setIsLoading(false);
+  //     }
+  //   };
+
+  //   fetchCourseDetails();
+  // }, [courseIdState]);
+
+
+
+
+
+  // const [enrollment, setEnrollment] = React.useState<any>(null);
+
   React.useEffect(() => {
     const fetchCourseDetails = async () => {
       setIsLoading(true);
       try {
         if (!courseIdState) return;
-
+  
         const courseDetails = await courseManagementService.getCourseDetails(courseIdState);
         setCourseDetails(courseDetails);
-        setEnrollment(courseDetails.enrollment);
-
+  
+        // If enrollment is not in course details, fetch it separately
+        if (!courseDetails.enrollment) {
+          const enrollmentDetails = await enrollmentService.getUserCourseEnrollment(courseIdState);
+          setCourseDetails(prev => ({
+            ...prev,
+            enrollment: enrollmentDetails
+          }));
+        }
+  
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching course details:', error);
         setIsLoading(false);
+        toast.error('Failed to fetch course details');
       }
     };
-
+  
     fetchCourseDetails();
   }, [courseIdState]);
+
+
 
   React.useEffect(() => {
     const fetchCourseNotices = async () => {
@@ -218,11 +255,9 @@ const CourseManagement: React.FC = () => {
   }, [courseDetails]);
 
   const enrollment = React.useMemo(() => {
-    // Find the enrollment for the current course
-    return enrollments.find(
-      enrollment => enrollment.course_id === courseIdState
-    ) || null;
-  }, [enrollments, courseIdState]);
+    // Use the enrollment from courseDetails instead of enrollments
+    return courseDetails?.enrollment || null;
+  }, [courseDetails]);
 
   // Debug curriculum
   React.useEffect(() => {
@@ -452,8 +487,9 @@ const CourseManagement: React.FC = () => {
             />
             </TabsContent>
             <TabsContent value="payment">
-              <PaymentInfo enrollment={enrollment} />
-            </TabsContent>
+            {courseIdState && (
+  <PaymentInfo courseId={courseIdState} />
+)}            </TabsContent>
           </div>
         </Tabs>
       </div>

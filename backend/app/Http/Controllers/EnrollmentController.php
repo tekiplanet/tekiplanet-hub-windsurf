@@ -277,6 +277,11 @@ class EnrollmentController extends Controller
             'paid_at' => now()
         ]);
 
+        // Get the enrollment
+        $enrollment = $installment->enrollment;    
+        $enrollment->payment_status = 'fully_paid';
+        $enrollment->save();
+
         // Log the transaction
         Log::info('Full course payment processed', [
             'user_id' => $user->id,
@@ -990,4 +995,47 @@ class EnrollmentController extends Controller
 
         return $anyPaid ? 'partially_paid' : 'pending_installments';
     }
+
+
+    public function getCourseInstallments($courseId)
+    {
+        try {
+            // Find the enrollment for the current user and the specific course
+            $enrollment = Enrollment::where('user_id', Auth::id())
+                ->where('course_id', $courseId)
+                ->first();
+    
+            if (!$enrollment) {
+                return response()->json(['message' => 'No enrollment found for this course'], 404);
+            }
+    
+            // Get installments for this enrollment
+            $installments = Installment::where('enrollment_id', $enrollment->id)->get();
+    
+            return response()->json($installments);
+        } catch (\Exception $e) {
+            Log::error('Error fetching course installments: ' . $e->getMessage());
+            return response()->json(['message' => 'Error fetching installments'], 500);
+        }
+    }
+
+
+    public function getUserCourseEnrollment($courseId)
+    {
+        try {
+            $enrollment = Enrollment::where('user_id', Auth::id())
+                ->where('course_id', $courseId)
+                ->first();
+    
+            if (!$enrollment) {
+                return response()->json(['message' => 'No enrollment found'], 404);
+            }
+    
+            return response()->json($enrollment);
+        } catch (\Exception $e) {
+            Log::error('Error fetching user course enrollment: ' . $e->getMessage());
+            return response()->json(['message' => 'Error fetching enrollment'], 500);
+        }
+    }    
+
 }

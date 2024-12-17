@@ -173,6 +173,27 @@ export const enrollmentService = {
     }
   },
 
+  getCourseInstallments: async (courseId: string) => {
+    try {
+      const response = await apiClient.get(`/courses/${courseId}/installments`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch course installments', error);
+      throw error;
+    }
+  }, 
+  
+  
+  async getUserCourseEnrollment(courseId: number | string) {
+    try {
+      const response = await apiClient.get(`/courses/${courseId}/enrollment`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching course enrollment:', error);
+      throw error;
+    }
+  },  
+
   async getCourseDetails(courseId: string) {
     try {
       const response = await apiClient.get(`/courses/${courseId}/details`);

@@ -79,6 +79,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{courseId}/exams/{examId}/participate', 
             [CourseController::class, 'startExamParticipation']
         )->middleware(['auth:sanctum']);
+        Route::get('/{courseId}/enrollment', [EnrollmentController::class, 'getUserCourseEnrollment']);        
+        Route::get('/{courseId}/installments', [EnrollmentController::class, 'getCourseInstallments']);
+
     });
 });
 
