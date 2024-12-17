@@ -21,6 +21,16 @@ return new class extends Migration
             $table->enum('difficulty', ['beginner', 'intermediate', 'advanced']);
             $table->boolean('is_mandatory')->default(false);
             
+            // New columns to match the model
+            $table->date('date')->nullable();
+            $table->string('duration')->nullable();
+            $table->enum('status', ['upcoming', 'completed', 'ongoing', 'missed'])->nullable();
+            $table->json('topics')->nullable();
+            
+            // Optional scoring columns
+            $table->decimal('score', 5, 2)->nullable();
+            $table->decimal('total_score', 5, 2)->nullable();
+            
             $table->foreign('course_id')
                   ->references('id')
                   ->on('courses')

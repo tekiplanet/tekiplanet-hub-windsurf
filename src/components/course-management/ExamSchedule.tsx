@@ -1,10 +1,12 @@
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Clock, FileText, Timer, Calendar, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { courseExams } from "@/data/courseExams";
+import { enrollmentService } from "@/services/enrollmentService";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Exam {
   id: string;
@@ -20,7 +22,36 @@ interface Exam {
 }
 
 export default function ExamSchedule({ courseId }: { courseId?: string }) {
-  const exams = courseExams[courseId] || [];
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchExams = async () => {
+      if (!courseId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const fetchedExams = await enrollmentService.getCourseExams(courseId);
+        setExams(fetchedExams);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Failed to fetch exams:', error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchExams();
+  }, [courseId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -84,4 +115,4 @@ export default function ExamSchedule({ courseId }: { courseId?: string }) {
       </div>
     </div>
   );
-} 
+}

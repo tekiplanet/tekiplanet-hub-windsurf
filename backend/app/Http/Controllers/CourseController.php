@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\CourseExam;
 use App\Models\CourseFeature;
 use App\Models\CourseNotice;
 use App\Models\UserCourseNotice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class CourseController extends Controller
 {
@@ -149,5 +152,58 @@ class CourseController extends Controller
             'message' => 'Notice removed successfully',
             'course_notice_id' => $courseNoticeId
         ]);
+    }
+
+    public function getCourseExams($courseId)
+    {
+        try {
+            // Find all exams for the specified course
+            $exams = CourseExam::where('course_id', $courseId)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Transform exams to include additional details
+            $transformedExams = $exams->map(function($exam) {
+                // Determine exam status based on current date
+                $now = now();
+                $examDate = Carbon::parse($exam->date);
+                
+                $status = 'upcoming';
+                if ($examDate->isPast()) {
+                    $status = 'missed';
+                    
+                    // Check if exam has been completed
+                    if ($exam->score !== null) {
+                        $status = 'completed';
+                    }
+                } elseif ($now->between($examDate, $examDate->copy()->addHours(2))) {
+                    $status = 'ongoing';
+                }
+
+                return [
+                    'id' => $exam->id,
+                    'title' => $exam->title,
+                    'type' => $exam->type,
+                    'date' => $exam->date,
+                    'duration' => $exam->duration,
+                    'status' => $status,
+                    'score' => $exam->score,
+                    'totalScore' => $exam->total_score,
+                    'topics' => $exam->topics ?? [],
+                    'instructions' => $exam->instructions
+                ];
+            });
+
+            return response()->json($transformedExams);
+        } catch (\Exception $e) {
+            // Log the error
+            Log::error('Error fetching course exams: ' . $e->getMessage());
+            
+            // Return an error response
+            return response()->json([
+                'message' => 'Unable to fetch course exams',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

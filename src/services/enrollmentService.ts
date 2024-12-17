@@ -183,6 +183,20 @@ export const enrollmentService = {
     }
   },
 
+  async getCourseExams(courseId: string) {
+    try {
+      const response = await apiClient.get(`/courses/${courseId}/exams`);
+      return response.data.map((exam: any) => ({
+        ...exam,
+        date: new Date(exam.date),
+        topics: exam.topics || []
+      }));
+    } catch (error) {
+      console.error('Error fetching course exams:', error);
+      return [];
+    }
+  },
+
   async processFullPayment(courseId: string, amount: number) {
     try {
       const response = await apiClient.post('/enrollments/full-payment', {

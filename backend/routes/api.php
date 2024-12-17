@@ -75,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{courseId}/details', [CourseController::class, 'getCourseDetails']);
         Route::get('/{courseId}/notices', [CourseController::class, 'getCourseNotices']);
         Route::delete('/notices/{courseNoticeId}', [CourseController::class, 'deleteUserCourseNotice']);
+        Route::get('/{courseId}/exams', [CourseController::class, 'getCourseExams']);
     });
 });
 
