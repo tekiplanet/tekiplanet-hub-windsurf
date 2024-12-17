@@ -11,6 +11,7 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\ServiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -97,3 +98,5 @@ Route::prefix('settings')->group(function () {
     Route::put('/', [SettingsController::class, 'update']);
     Route::get('/{key}', [SettingsController::class, 'getSetting']);
 });
+
+Route::get('/services/categories', [ServiceController::class, 'getCategoriesWithServices'])->middleware(['auth:sanctum']);

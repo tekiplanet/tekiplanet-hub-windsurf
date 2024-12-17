@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { apiClient } from '@/lib/axios';  
 import { 
   Code, 
   Shield, 
@@ -10,7 +11,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { useNavigate } from 'react-router-dom';
 
 // Helper function to map icon names to Lucide icons
@@ -27,62 +27,17 @@ const getLucideIcon = (iconName: string) => {
   return iconMap[iconName] || iconMap.default;
 };
 
-const serviceCategories = [
-  {
-    id: 'software-engineering',
-    title: 'Software Engineering',
-    icon: 'Code',
-    description: 'Custom web and mobile app development solutions',
-    subServices: [
-      { 
-        id: 'web-development', 
-        title: 'Web Development', 
-        description: 'Create stunning, responsive websites' 
-      },
-      { 
-        id: 'app-development', 
-        title: 'App Development', 
-        description: 'Mobile apps for iOS and Android' 
-      },
-      { 
-        id: 'maintenance', 
-        title: 'Maintenance', 
-        description: 'Ongoing support and updates' 
-      }
-    ]
-  },
-  {
-    id: 'cyber-security',
-    title: 'Cyber Security',
-    icon: 'Shield',
-    description: 'Comprehensive security assessments and solutions',
-    subServices: [
-      { 
-        id: 'security-audit', 
-        title: 'Security Audit', 
-        description: 'Thorough vulnerability assessment' 
-      },
-      { 
-        id: 'penetration-testing', 
-        title: 'Penetration Testing', 
-        description: 'Identify and mitigate security risks' 
-      }
-    ]
-  },
-  {
-    id: 'it-consulting',
-    title: 'IT Consulting',
-    icon: 'Briefcase',
-    description: 'Expert guidance for your technology strategy',
-    subServices: [
-      { 
-        id: 'expert-session', 
-        title: 'Expert Consultation', 
-        description: 'One-on-one strategic technology advice' 
-      }
-    ]
-  }
-];
+interface ServiceCategory {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  subServices: {
+    id: string;
+    title: string;
+    description?: string;
+  }[];
+}
 
 const servicesImages = [
   'https://images.unsplash.com/photo-1498050108023-c5249f4df085',
@@ -90,56 +45,75 @@ const servicesImages = [
   'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4'
 ];
 
-export default function ServicesPage() {
+const ServicesPage: React.FC = () => {
   const navigate = useNavigate();
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchServiceCategories = async () => {
+      try {
+        const response = await apiClient.get('/services/categories');
+        
+        // Ensure response.data is an array
+        const categoriesData = Array.isArray(response.data) 
+          ? response.data 
+          : (response.data.data || []);
+        
+        setServiceCategories(categoriesData);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching service categories:', err);
+        setError(err.response?.data?.message || 'Failed to fetch service categories');
+        setIsLoading(false);
+      }
+    };
+
+    fetchServiceCategories();
+  }, []);
 
   const handleServiceSelect = (categoryId: string, serviceId: string) => {
-    switch(categoryId) {
-      case 'software-engineering':
-        navigate(`/dashboard/services/quote/software-engineering/${serviceId}`);
-        break;
-      case 'cyber-security':
-        navigate(`/dashboard/services/quote/cyber-security/${serviceId}`);
-        break;
-      case 'it-consulting':
-        navigate('/dashboard/services/consulting');
-        break;
-    }
+    navigate(`/services/${categoryId}/${serviceId}`);
   };
+
+  if (isLoading) {
+    return <div className="text-center py-8">Loading services...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500 py-8">{error}</div>;
+  }
+
+  if (!serviceCategories || serviceCategories.length === 0) {
+    return <div className="text-center py-8">No services available</div>;
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       {/* Hero Section with Carousel */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <Carousel>
-          <CarouselContent>
-            {servicesImages.map((image, index) => (
-              <CarouselItem key={index}>
-                <div className="relative h-64 md:h-96 w-full">
-                  <img 
-                    src={image} 
-                    alt={`Service ${index + 1}`} 
-                    className="absolute inset-0 w-full h-full object-cover rounded-lg"
-                  />
-                  <div className="absolute inset-0 bg-black/40 rounded-lg" />
-                  <div className="absolute bottom-6 left-6 text-white">
-                    <h2 className="text-2xl md:text-4xl font-bold">
-                      Transforming Your Digital Vision
-                    </h2>
-                    <p className="text-sm md:text-base mt-2">
-                      Innovative Solutions for Modern Businesses
-                    </p>
-                  </div>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
+        <div className="relative h-64 md:h-96 w-full">
+          <img 
+            src={servicesImages[0]} 
+            alt="Service" 
+            className="absolute inset-0 w-full h-full object-cover rounded-lg"
+          />
+          <div className="absolute inset-0 bg-black/40 rounded-lg" />
+          <div className="absolute bottom-6 left-6 text-white">
+            <h2 className="text-2xl md:text-4xl font-bold">
+              Transforming Your Digital Vision
+            </h2>
+            <p className="text-sm md:text-base mt-2">
+              Innovative Solutions for Modern Businesses
+            </p>
+          </div>
+        </div>
       </motion.div>
 
       {/* Services Grid */}
@@ -192,4 +166,6 @@ export default function ServicesPage() {
       </motion.div>
     </div>
   );
-}
+};
+
+export default ServicesPage;
