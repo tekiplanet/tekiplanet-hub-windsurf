@@ -22,6 +22,7 @@ interface Exam {
     totalScore?: number;
     instructions?: string;
     topics?: string[] | string | null;
+    attempts?: number;
 }
 
 const getStatusColor = (status: string) => {
@@ -59,6 +60,23 @@ const ExamSchedule: React.FC<{
         return [];
     };
 
+    // Helper function to determine if an exam is missed
+    const isExamMissed = (exam: Exam): boolean => {
+        // If exam date is not set, it can't be missed
+        if (!exam.date) return false;
+
+        const now = new Date();
+        const examDate = new Date(exam.date);
+
+        // Check if the exam date has passed
+        return examDate < now && 
+               // And the user has no existing exam attempt
+               (!exam.attempts || exam.attempts === 0) && 
+               // And the current status is not already completed or in progress
+               exam.userExamStatus !== 'completed' && 
+               exam.userExamStatus !== 'in_progress';
+    };
+
     useEffect(() => {
         const fetchExams = async () => {
             if (!courseId) {
@@ -77,13 +95,23 @@ const ExamSchedule: React.FC<{
                     : [];
 
                 // Transform exams to ensure topics is always an array
-                const transformedExams = fetchedExams.map(exam => ({
-                    ...exam,
-                    // Ensure date is a valid Date object
-                    date: exam.date ? new Date(exam.date) : new Date(),
-                    // Parse topics safely
-                    topics: parseTopics(exam.topics)
-                })).filter(exam => exam.id); // Remove any invalid exams
+                // And update status for missed exams
+                const transformedExams = fetchedExams.map(exam => {
+                    const transformedExam = {
+                        ...exam,
+                        // Ensure date is a valid Date object
+                        date: exam.date ? new Date(exam.date) : new Date(),
+                        // Parse topics safely
+                        topics: parseTopics(exam.topics)
+                    };
+
+                    // Update status to missed if applicable
+                    if (isExamMissed(transformedExam)) {
+                        transformedExam.userExamStatus = 'missed';
+                    }
+
+                    return transformedExam;
+                }).filter(exam => exam.id); // Remove any invalid exams
 
                 setExams(transformedExams);
                 setIsLoading(false);
@@ -185,16 +213,18 @@ const ExamSchedule: React.FC<{
 
                                     <Badge 
                                         className={
+                                            exam.userExamStatus === 'missed' ? 'bg-destructive text-white' :
                                             exam.userExamStatus === 'not_started' ? 'bg-primary text-white' :
                                             exam.userExamStatus === 'completed' ? 'bg-green-500 text-white' :
                                             exam.userExamStatus === 'in_progress' ? 'bg-yellow-500 text-white' :
-                                            'bg-destructive text-white'
+                                            'bg-gray-500 text-white'
                                         }
                                     >
                                         {exam.userExamStatus}
                                     </Badge>
                                 </div>
 
+                                {/* Only show participate button if not missed and not started */}
                                 {exam.userExamStatus === 'not_started' && (
                                     <Button 
                                         variant="outline" 
