@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,12 @@ interface Exam {
     attempts?: number;
 }
 
+interface ExamScheduleProps {
+    courseId?: string;
+    refreshExams?: () => void;
+    onUpcomingExamsCountChange?: (count: number) => void;
+}
+
 const getStatusColor = (status: string) => {
     switch (status) {
         case 'completed': return 'green';
@@ -38,10 +44,11 @@ const getStatusColor = (status: string) => {
     }
 };
 
-export default function ExamSchedule({ courseId, refreshExams }: { 
-    courseId?: string, 
-    refreshExams?: () => void 
-}) {
+const ExamSchedule: React.FC<ExamScheduleProps> = ({ 
+    courseId, 
+    refreshExams, 
+    onUpcomingExamsCountChange 
+}) => {
     const [exams, setExams] = useState<Exam[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -181,8 +188,9 @@ export default function ExamSchedule({ courseId, refreshExams }: {
                 userExamStatus: exam.userExamStatus
             });
             
-            // Determine score color based on pass percentage
+            // Determine score color and status based on pass percentage
             let color = "text-green-600"; // default to green
+            let status = "Passed"; // default status
             
             if (exam.pass_percentage != null) {
                 // Calculate score percentage
@@ -202,12 +210,13 @@ export default function ExamSchedule({ courseId, refreshExams }: {
 
                 if (scorePercentage < passingThreshold) {
                     color = "text-red-600"; // red if below passing percentage
+                    status = "Failed"; // update status
                 }
             }
 
-            // Return the score display
+            // Return the score display with status
             return { 
-                score: `${userScore} / ${totalScore}`, 
+                score: `${userScore} / ${totalScore} (${status})`, 
                 color 
             };
         }
@@ -292,6 +301,18 @@ export default function ExamSchedule({ courseId, refreshExams }: {
         fetchExams();
     }, [courseId]);
 
+    // Log exams when they are set
+    React.useEffect(() => {
+        console.log('Raw Exams Data:', {
+            exams: exams.map(exam => ({
+                title: exam.title,
+                date: exam.date,
+                userExamStatus: exam.userExamStatus,
+                fullExamObject: exam
+            }))
+        });
+    }, [exams]);
+
     const handleParticipate = async (examId: string) => {
         if (!courseId) return;
 
@@ -320,6 +341,50 @@ export default function ExamSchedule({ courseId, refreshExams }: {
         }
     };
 
+    // Count upcoming exams
+    const upcomingExamsCount = useMemo(() => {
+        const now = new Date();
+        const count = exams.filter(exam => {
+            // Ensure date is parsed correctly
+            const examDate = new Date(exam.date);
+            const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            // Detailed logging for debugging
+            console.log('Exam Details for Upcoming Count:', {
+                examTitle: exam.title,
+                examDate: examDate.toISOString(),
+                nowDate: nowDate.toISOString(),
+                isDateFuture: examDate >= nowDate,
+                rawDate: exam.date,
+                parsedExamDate: examDate,
+                parsedNowDate: nowDate
+            });
+
+            // Check if exam date is today or in the future
+            return examDate >= nowDate;
+        });
+
+        // Detailed logging of filtered exams
+        console.log('Upcoming Exams Details:', {
+            totalExams: exams.length,
+            upcomingExamsCount: count.length,
+            upcomingExams: count.map(exam => ({
+                title: exam.title,
+                date: exam.date
+            }))
+        });
+
+        // Call the callback to pass the count to parent
+        if (onUpcomingExamsCountChange) {
+            onUpcomingExamsCountChange(count.length);
+        }
+
+        return count.length;
+    }, [exams, onUpcomingExamsCountChange]);
+
+    // Prepare notification badge
+    const hasUpcomingExams = upcomingExamsCount > 0;
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-full">
@@ -347,7 +412,12 @@ export default function ExamSchedule({ courseId, refreshExams }: {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold">Upcoming Exams</h2>
+                <h2 className="text-lg font-semibold">Upcoming Exams ({upcomingExamsCount})</h2>
+                {hasUpcomingExams && (
+                    <Badge variant="outline" className="text-xs">
+                        {upcomingExamsCount} upcoming
+                    </Badge>
+                )}
             </div>
 
             <div className="grid gap-4">
@@ -429,3 +499,5 @@ export default function ExamSchedule({ courseId, refreshExams }: {
         </div>
     );
 };
+
+export default ExamSchedule;

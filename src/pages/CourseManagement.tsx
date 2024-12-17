@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import enrollmentService from '@/services/enrollmentService';
 import { courseManagementService } from '@/services/courseManagementService';
+import apiClient, { isAxiosError } from '@/lib/axios';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,73 +52,82 @@ const CourseManagement: React.FC = () => {
   const [noticesLoading, setNoticesLoading] = React.useState(true);
   const [isLoading, setIsLoading] = React.useState(true);
 
+  const [upcomingExamsCount, setUpcomingExamsCount] = React.useState(0);
+
   const handleNoticeDelete = React.useCallback((noticeId: string) => {
     setNotices(prevNotices => 
       prevNotices.filter(notice => notice.id !== noticeId)
     );
   }, []);
 
+  const handleUpcomingExamsCountChange = React.useCallback((count: number) => {
+    setUpcomingExamsCount(count);
+  }, []);
+
+  // Function to calculate upcoming exams
+  const calculateUpcomingExams = React.useCallback((exams: any[] = []) => {
+    const now = new Date();
+    const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const upcomingExams = exams.filter(exam => {
+      const examDate = new Date(exam.date);
+      
+      // Log details for debugging
+      console.log('Upcoming Exams Calculation:', {
+        examTitle: exam.title,
+        examDate: examDate.toISOString(),
+        nowDate: nowDate.toISOString(),
+        isUpcoming: examDate >= nowDate
+      });
+      
+      return examDate >= nowDate;
+    });
+
+    // Set the count of upcoming exams
+    setUpcomingExamsCount(upcomingExams.length);
+
+    return upcomingExams.length;
+  }, []);
+
+  // Separate effect to fetch exams
+  React.useEffect(() => {
+    const fetchCourseExams = async () => {
+      try {
+        if (!courseIdState) return;
+
+        const examsResponse = await apiClient.get(`/courses/${courseIdState}/exams`);
+        const exams = examsResponse.data;
+
+        // Calculate upcoming exams immediately
+        calculateUpcomingExams(exams);
+      } catch (error) {
+        console.error('Error fetching exams:', error);
+      }
+    };
+
+    fetchCourseExams();
+  }, [courseIdState, calculateUpcomingExams]);
+
   React.useEffect(() => {
     const fetchCourseDetails = async () => {
       setIsLoading(true);
       try {
-        // Fetch user's enrollments first
-        const fetchedEnrollments = await enrollmentService.getUserEnrollments();
-        
-        // Ensure fetchedEnrollments is an array
-        const enrollmentsArray = Array.isArray(fetchedEnrollments) 
-          ? fetchedEnrollments 
-          : fetchedEnrollments.enrollments || fetchedEnrollments.data || [];
-        
-        setEnrollments(enrollmentsArray);
+        if (!courseIdState) return;
 
-        // Log all available enrollment IDs for debugging
-        console.log('Available Enrollment IDs:', enrollmentsArray.map(e => e.id || e.enrollment_id));
-        console.log('Current Course ID:', courseIdState);
+        const courseDetails = await courseManagementService.getCourseDetails(courseIdState);
+        setCourseDetails(courseDetails);
+        setEnrollment(courseDetails.enrollment);
 
-        // Check if the current course is in the user's enrollments
-        const isEnrolled = enrollmentsArray.some(
-          enrollment => 
-            enrollment.course_id === courseIdState &&
-            enrollment.enrollment_status === 'active'
-        );
-
-        if (!isEnrolled) {
-          console.warn('User is not enrolled in this course or enrollment is not active');
-          console.warn('Enrollments:', JSON.stringify(enrollmentsArray, null, 2));
-          console.warn('Current Course ID:', courseIdState);
-          setErrorMessage('You are not enrolled in this course or your enrollment is not active');
-          setIsLoading(false);
-          return;
-        }
-
-        if (courseIdState) {
-          console.log(`Fetching details for course: ${courseIdState}`);
-          const details = await courseManagementService.getCourseDetails(courseIdState);
-          setCourseDetails(details);
-          console.log('Fetched course details:', details);
-        } else {
-          console.warn('No course ID provided');
-        }
+        setIsLoading(false);
       } catch (error) {
-        console.error('Error in fetchCourseDetails:', error);
-        
-        // More detailed error handling
-        if (error instanceof Error) {
-          setErrorMessage(error.message);
-        } else {
-          setErrorMessage('An unexpected error occurred');
-        }
-        toast.error('Failed to load course details');
-      } finally {
+        console.error('Error fetching course details:', error);
         setIsLoading(false);
       }
     };
 
     fetchCourseDetails();
-  }, [courseIdState]);  
+  }, [courseIdState]);
 
-  // Fetch course notices
   React.useEffect(() => {
     const fetchCourseNotices = async () => {
       if (!courseId) return;
@@ -363,8 +373,16 @@ const CourseManagement: React.FC = () => {
                 <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="exams">
+            <TabsTrigger value="exams" className="relative">
               <FileText className="h-4 w-4 mr-2" /> Exams
+              {upcomingExamsCount > 0 && (
+                <span 
+                  className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full animate-pulse"
+                  title={`${upcomingExamsCount} upcoming exam${upcomingExamsCount > 1 ? 's' : ''}`}
+                >
+                  {upcomingExamsCount}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="payment">
               <Wallet className="h-4 w-4 mr-2" /> Payment
@@ -388,7 +406,10 @@ const CourseManagement: React.FC = () => {
               />
             </TabsContent>
             <TabsContent value="exams">
-              <ExamSchedule courseId={courseIdState} />
+              <ExamSchedule 
+                courseId={courseIdState || undefined} 
+                onUpcomingExamsCountChange={handleUpcomingExamsCountChange}
+              />
             </TabsContent>
             <TabsContent value="payment">
               <PaymentInfo enrollment={enrollment} />
