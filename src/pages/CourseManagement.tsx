@@ -64,30 +64,72 @@ const CourseManagement: React.FC = () => {
     setUpcomingExamsCount(count);
   }, []);
 
-  // Function to calculate upcoming exams
-  const calculateUpcomingExams = React.useCallback((exams: any[] = []) => {
-    const now = new Date();
-    const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const upcomingExams = exams.filter(exam => {
-      const examDate = new Date(exam.date);
+
+    // Function to calculate upcoming exams
+    const calculateUpcomingExams = React.useCallback((exams: any[] = []) => {
+      const now = new Date();
+      const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
-      // Log details for debugging
-      console.log('Upcoming Exams Calculation:', {
-        examTitle: exam.title,
-        examDate: examDate.toISOString(),
-        nowDate: nowDate.toISOString(),
-        isUpcoming: examDate >= nowDate
+      const upcomingExams = exams.filter(exam => {
+        const examDate = new Date(exam.date);
+        
+        // Log details for debugging
+        console.log('Upcoming Exams Calculation:', {
+          examTitle: exam.title,
+          examDate: examDate.toISOString(),
+          nowDate: nowDate.toISOString(),
+          isUpcoming: examDate >= nowDate
+        });
+        
+        return examDate >= nowDate;
+      });
+  
+      // Set the count of upcoming exams
+      setUpcomingExamsCount(upcomingExams.length);
+  
+      return upcomingExams.length;
+    }, []);
+
+  // Add this method near other React.useCallback methods
+  const refreshExams = React.useCallback(async () => {
+    try {
+      if (!courseIdState) return;
+  
+      const examsResponse = await apiClient.get(`/courses/${courseIdState}/exams`);
+      const exams = examsResponse.data;
+  
+      // Recalculate upcoming exams
+      const upcomingCount = calculateUpcomingExams(exams);
+  
+      // Update course details to reflect new exam state
+      if (courseDetails) {
+        setCourseDetails(prevDetails => ({
+          ...prevDetails!,
+          exams: exams
+        }));
+      }
+  
+      // Call the callback to update upcoming exams count if provided
+      if (handleUpcomingExamsCountChange) {
+        handleUpcomingExamsCountChange(upcomingCount);
+      }
+  
+      // Optional: Add a toast to confirm refresh
+      toast.success('Exams Refreshed', {
+        description: 'Exam schedule has been updated'
+      });
+  
+      return exams;
+    } catch (error) {
+      console.error('Error refreshing exams:', error);
+      toast.error('Failed to Refresh Exams', {
+        description: 'Could not update exam schedule'
       });
       
-      return examDate >= nowDate;
-    });
+      return [];
+    }
+  }, [courseIdState, calculateUpcomingExams, courseDetails, handleUpcomingExamsCountChange]);
 
-    // Set the count of upcoming exams
-    setUpcomingExamsCount(upcomingExams.length);
-
-    return upcomingExams.length;
-  }, []);
 
   // Separate effect to fetch exams
   React.useEffect(() => {
@@ -403,10 +445,11 @@ const CourseManagement: React.FC = () => {
               />
             </TabsContent>
             <TabsContent value="exams">
-              <ExamSchedule 
-                courseId={courseIdState || undefined} 
-                onUpcomingExamsCountChange={handleUpcomingExamsCountChange}
-              />
+            <ExamSchedule 
+              courseId={courseIdState} 
+              refreshExams={refreshExams}
+              onUpcomingExamsCountChange={handleUpcomingExamsCountChange}
+            />
             </TabsContent>
             <TabsContent value="payment">
               <PaymentInfo enrollment={enrollment} />

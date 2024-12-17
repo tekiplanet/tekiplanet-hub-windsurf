@@ -156,17 +156,57 @@ const ExamSchedule: React.FC<ExamScheduleProps> = ({
         // Check if the exam date is today or in the past
         const isExamDatePassed = nowDate.getTime() >= examDateOnly.getTime();
 
+
+
+
         // Check if the exam is completed or in progress and has attempts
         const isCompletedOrInProgress = 
             (exam.userExamStatus === 'completed' || exam.userExamStatus === 'in_progress') && 
             exam.attempts && 
             exam.attempts > 0;
 
+            const isExamToday = nowDate.getTime() === examDateOnly.getTime();
+
+
+            // Detailed logging to understand exam state
+            console.log('Exam Score Display Debug:', {
+                examTitle: exam.title,
+                examDate: exam.date,
+                isExamDatePassed: isExamDatePassed,
+                userExamStatus: exam.userExamStatus,
+                score: exam.score,
+                scoreType: typeof exam.score
+            });           
+
+
+            if (
+                (isExamDatePassed || isExamToday) && 
+                exam.userExamStatus === 'completed' && 
+                (exam.score === null || 
+                 exam.score === undefined || 
+                 exam.score === "Awaiting result")
+            ) {
+                return {
+                    score: "Awaiting Result", 
+                    color: "text-yellow-600"
+                };
+            }   
+
         // If exam is past or today, completed or in progress, and has attempts
         if (isExamDatePassed && isCompletedOrInProgress) {
+
+
+            if (exam.userExamStatus === 'in_progress' && isExamDatePassed) {
+                return { 
+                    score: "", 
+                    color: "text-gray-500" 
+                };
+            }
+
             // Parse score if it's a string like "50 / 100"
             let userScore = 0;
             let totalScore = 0;
+      
 
             if (typeof exam.score === 'string' && exam.score.includes('/')) {
                 const [scoreStr, totalStr] = exam.score.split('/').map(s => s.trim());
@@ -449,12 +489,6 @@ const ExamSchedule: React.FC<ExamScheduleProps> = ({
                                         ))}
                                     </div>
 
-                                    {exam.score ? (
-                                        <div className="text-sm text-gray-600">
-                                            Status: {formatStatusText(exam.userExamStatus)}
-                                        </div>
-                                    ) : null}
-
                                     <Badge 
                                         className={
                                             exam.userExamStatus === 'missed' ? 'bg-destructive text-white' :
@@ -468,16 +502,16 @@ const ExamSchedule: React.FC<ExamScheduleProps> = ({
                                         {formatStatusText(exam.userExamStatus)}
                                     </Badge>
 
-                                    {/* Score Display */}
                                     {((new Date().getTime() >= new Date(exam.date).getTime()) && 
-                                      (exam.userExamStatus === 'completed' || exam.userExamStatus === 'in_progress') && 
-                                      exam.attempts && 
-                                      exam.attempts > 0) && (
+                                    (exam.userExamStatus === 'completed' || exam.userExamStatus === 'in_progress') && 
+                                    exam.attempts && 
+                                    exam.attempts > 0) && (
                                         <div className="text-sm">
-                                            <span className="font-medium">Score: </span>
-                                            <span className={getExamScoreDisplay(exam).color}>
-                                                {getExamScoreDisplay(exam).score}
-                                            </span>
+                                            {getExamScoreDisplay(exam).score !== "" && (
+                                                <div className={`text-sm ${getExamScoreDisplay(exam).color}`}>
+                                                    Score: {getExamScoreDisplay(exam).score}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
