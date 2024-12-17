@@ -4,18 +4,34 @@ import {
   Code, 
   Shield, 
   Briefcase, 
-  ArrowRight 
+  ArrowRight, 
+  Smartphone, 
+  Palette 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { useNavigate } from 'react-router-dom';
 
+// Helper function to map icon names to Lucide icons
+const getLucideIcon = (iconName: string) => {
+  const iconMap = {
+    'Code': Code,
+    'Shield': Shield,
+    'Briefcase': Briefcase,
+    'Smartphone': Smartphone,
+    'Palette': Palette,
+    default: Code // Fallback icon
+  };
+
+  return iconMap[iconName] || iconMap.default;
+};
+
 const serviceCategories = [
   {
     id: 'software-engineering',
     title: 'Software Engineering',
-    icon: <Code className="h-12 w-12 text-primary" />,
+    icon: 'Code',
     description: 'Custom web and mobile app development solutions',
     subServices: [
       { 
@@ -38,7 +54,7 @@ const serviceCategories = [
   {
     id: 'cyber-security',
     title: 'Cyber Security',
-    icon: <Shield className="h-12 w-12 text-primary" />,
+    icon: 'Shield',
     description: 'Comprehensive security assessments and solutions',
     subServices: [
       { 
@@ -56,7 +72,7 @@ const serviceCategories = [
   {
     id: 'it-consulting',
     title: 'IT Consulting',
-    icon: <Briefcase className="h-12 w-12 text-primary" />,
+    icon: 'Briefcase',
     description: 'Expert guidance for your technology strategy',
     subServices: [
       { 
@@ -133,43 +149,46 @@ export default function ServicesPage() {
         transition={{ delay: 0.2 }}
         className="grid md:grid-cols-3 gap-6"
       >
-        {serviceCategories.map((category) => (
-          <Card 
-            key={category.id}
-            className={`hover:shadow-lg transition-all duration-300 ${
-              activeCategory === category.id 
-                ? 'border-primary' 
-                : 'border-transparent'
-            }`}
-            onMouseEnter={() => setActiveCategory(category.id)}
-            onMouseLeave={() => setActiveCategory(null)}
-          >
-            <CardHeader className="flex flex-row items-center space-x-4">
-              {category.icon}
-              <div>
-                <CardTitle>{category.title}</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {category.description}
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {category.subServices.map((service) => (
-                  <Button 
-                    key={service.id}
-                    variant="outline" 
-                    className="w-full justify-between"
-                    onClick={() => handleServiceSelect(category.id, service.id)}
-                  >
-                    <span>{service.title}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {serviceCategories.map((category) => {
+          const ServiceIcon = getLucideIcon(category.icon);
+          return (
+            <Card 
+              key={category.id}
+              className={`hover:shadow-lg transition-all duration-300 ${
+                activeCategory === category.id 
+                  ? 'border-primary' 
+                  : 'border-transparent'
+              }`}
+              onMouseEnter={() => setActiveCategory(category.id)}
+              onMouseLeave={() => setActiveCategory(null)}
+            >
+              <CardHeader className="flex flex-row items-center space-x-4">
+                <ServiceIcon className="h-12 w-12 text-primary" />
+                <div>
+                  <CardTitle>{category.title}</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {category.description}
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {category.subServices.map((service) => (
+                    <Button 
+                      key={service.id}
+                      variant="outline" 
+                      className="w-full justify-between"
+                      onClick={() => handleServiceSelect(category.id, service.id)}
+                    >
+                      <span>{service.title}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </motion.div>
     </div>
   );

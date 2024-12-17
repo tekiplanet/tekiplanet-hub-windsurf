@@ -79,7 +79,7 @@ const menuItems: MenuItem[] = [
     icon: <Briefcase className="w-4 h-4" />
   },
   {
-    label: "Quote Requests",
+    label: "Quotes",
     path: "/dashboard/quotes",
     icon: <FileText className="w-4 h-4" />
   },
