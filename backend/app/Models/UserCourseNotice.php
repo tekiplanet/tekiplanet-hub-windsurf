@@ -14,7 +14,8 @@ class UserCourseNotice extends Model
         'user_id', 
         'course_notice_id', 
         'is_read', 
-        'read_at'
+        'read_at',
+        'is_hidden'
     ];
 
     protected $dates = [
@@ -22,7 +23,8 @@ class UserCourseNotice extends Model
     ];
 
     protected $casts = [
-        'is_read' => 'boolean'
+        'is_read' => 'boolean',
+        'is_hidden' => 'boolean'
     ];
 
     protected static function boot()

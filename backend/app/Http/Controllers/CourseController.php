@@ -105,8 +105,15 @@ class CourseController extends Controller
         // Validate the course exists
         $course = Course::findOrFail($courseId);
 
-        // Fetch notices related to this course
+        // Get the authenticated user
+        $user = auth()->user();
+
+        // Fetch notices related to this course, excluding soft-deleted notices for this user
         $notices = CourseNotice::where('course_id', $courseId)
+            ->whereDoesntHave('userNotices', function($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->where('is_hidden', true);
+            })
             ->orderBy('published_at', 'desc')
             ->get();
 
@@ -133,8 +140,9 @@ class CourseController extends Controller
             'course_notice_id' => $courseNoticeId
         ]);
 
-        // Soft delete for this user
-        $userCourseNotice->delete();
+        // Mark as hidden for this user
+        $userCourseNotice->is_hidden = true;
+        $userCourseNotice->save();
 
         return response()->json([
             'success' => true,
