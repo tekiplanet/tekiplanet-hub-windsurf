@@ -803,7 +803,7 @@ export default function MyCourses() {
       )}
 
       {/* Empty State */}
-      {filteredCourses.length === 0 && (
+      {!isLoading && filteredCourses.length === 0 && (
         <Card>
           <CardContent className="p-8 text-center">
             <div className="max-w-md mx-auto space-y-4">
