@@ -121,17 +121,27 @@ const ServiceQuoteRequest: React.FC = () => {
     budgetRange: z.string().min(1, { message: "Budget range is required" }),
     contactMethod: z.string().min(1, { message: "Contact method is required" }),
     projectDescription: z.string().min(10, { message: "Project description is required (minimum 10 characters)" }),
-    projectDeadline: z.date({ required_error: "Project deadline is required" }),
+    projectDeadline: z.preprocess((arg) => {
+      if (arg instanceof Date) return arg;
+      if (typeof arg === 'string') {
+        const date = new Date(arg);
+        return !isNaN(date.getTime()) ? date : null;
+      }
+      return null;
+    }, z.date({ required_error: "Project deadline is required" })),
     dynamicFields: z.record(z.string(), z.union([
       z.string(), 
       z.array(z.string()), 
       z.boolean(), 
       z.number(),
-      z.date().nullable().or(z.string().nullable().transform(val => {
-        if (!val) return null;
-        const parsed = new Date(val);
-        return !isNaN(parsed.getTime()) ? parsed : null;
-      }))
+      z.preprocess((arg) => {
+        if (arg instanceof Date) return arg;
+        if (typeof arg === 'string') {
+          const date = new Date(arg);
+          return !isNaN(date.getTime()) ? date : null;
+        }
+        return null;
+      }, z.date().nullable())
     ]).optional()).optional()
   });
 
@@ -227,7 +237,7 @@ const ServiceQuoteRequest: React.FC = () => {
         budget_range: values.budgetRange,
         contact_method: values.contactMethod,
         project_description: values.projectDescription,
-        project_deadline: format(values.projectDeadline, 'yyyy-MM-dd'),
+        project_deadline: values.projectDeadline ? format(values.projectDeadline, 'yyyy-MM-dd') : null,
         quote_fields: processedDynamicFields
       });
 
