@@ -1,9 +1,10 @@
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, BookOpen, Calendar, FileText, MessageSquare, AlertTriangle } from "lucide-react";
+import { Bell, BookOpen, Calendar, FileText, MessageSquare, AlertTriangle, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from 'sonner';
+import { courseManagementService } from "@/services/courseManagementService";
 
 interface Notice {
   id: string;
@@ -18,13 +19,35 @@ interface Notice {
 export default function CourseNotices({ 
   courseId, 
   notices, 
-  loading 
+  loading,
+  onNoticeDelete 
 }: { 
   courseId?: string, 
   notices: Notice[], 
-  loading: boolean 
+  loading: boolean,
+  onNoticeDelete?: (noticeId: string) => void 
 }) {
   const [showFallbackNotices, setShowFallbackNotices] = React.useState(false);
+
+  const handleDeleteNotice = React.useCallback(async (noticeId: string) => {
+    try {
+      const result = await courseManagementService.deleteUserCourseNotice(noticeId);
+      
+      if (result.success) {
+        toast.success('Notice removed successfully');
+        
+        // Call the parent component's delete handler if provided
+        if (onNoticeDelete) {
+          onNoticeDelete(noticeId);
+        }
+      } else {
+        toast.error(result.message || 'Failed to remove notice');
+      }
+    } catch (error) {
+      console.error('Error deleting notice:', error);
+      toast.error('An unexpected error occurred');
+    }
+  }, [onNoticeDelete]);
 
   React.useEffect(() => {
     if (loading === false && notices.length === 0) {
@@ -168,6 +191,13 @@ export default function CourseNotices({
                             {showFallbackNotices ? 'Fallback' : 'Important'}
                           </Badge>
                         )}
+                        <button 
+                          onClick={() => handleDeleteNotice(notice.id)}
+                          className="ml-auto text-muted-foreground hover:text-destructive transition-colors"
+                          title="Remove Notice"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -49,6 +49,12 @@ const CourseManagement: React.FC = () => {
   const [notices, setNotices] = React.useState<Notice[]>([]);
   const [noticesLoading, setNoticesLoading] = React.useState(true);
 
+  const handleNoticeDelete = React.useCallback((noticeId: string) => {
+    setNotices(prevNotices => 
+      prevNotices.filter(notice => notice.id !== noticeId)
+    );
+  }, []);
+
   React.useEffect(() => {
     const fetchCourseDetails = async () => {
       try {
@@ -360,7 +366,12 @@ const CourseManagement: React.FC = () => {
               <CourseSchedule courseId={courseIdState} />
             </TabsContent>
             <TabsContent value="notices">
-              <CourseNotices courseId={courseIdState} notices={notices} loading={noticesLoading} />
+              <CourseNotices 
+                courseId={courseIdState} 
+                notices={notices} 
+                loading={noticesLoading} 
+                onNoticeDelete={handleNoticeDelete} 
+              />
             </TabsContent>
             <TabsContent value="exams">
               <ExamSchedule courseId={courseIdState} />

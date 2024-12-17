@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\CourseFeature;
 use App\Models\CourseNotice;
+use App\Models\UserCourseNotice;
 use Illuminate\Http\Request;
 
 class CourseController extends Controller
@@ -112,6 +113,33 @@ class CourseController extends Controller
         return response()->json([
             'notices' => $notices,
             'course_id' => $courseId
+        ]);
+    }
+
+    /**
+     * Delete a user's course notice
+     *
+     * @param Request $request
+     * @param string $courseNoticeId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteUserCourseNotice(Request $request, $courseNoticeId)
+    {
+        $user = $request->user();
+
+        // Find or create the user's course notice record
+        $userCourseNotice = UserCourseNotice::firstOrCreate([
+            'user_id' => $user->id,
+            'course_notice_id' => $courseNoticeId
+        ]);
+
+        // Soft delete for this user
+        $userCourseNotice->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notice removed successfully',
+            'course_notice_id' => $courseNoticeId
         ]);
     }
 }

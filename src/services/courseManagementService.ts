@@ -107,6 +107,41 @@ export const courseManagementService = {
     }
   },
 
+  async deleteUserCourseNotice(courseNoticeId: string) {
+    try {
+      console.log(`Deleting notice with ID: ${courseNoticeId}`);
+      
+      const response = await apiClient.delete(`/courses/notices/${courseNoticeId}`);
+      
+      console.log('Delete Notice Response:', {
+        status: response.status,
+        data: JSON.stringify(response.data, null, 2)
+      });
+
+      return {
+        success: true,
+        message: response.data.message || 'Notice deleted successfully',
+        courseNoticeId: courseNoticeId
+      };
+    } catch (error) {
+      console.error('Error deleting course notice:', error);
+      
+      if (axios.isAxiosError(error)) {
+        console.error('Axios Error Details:', {
+          message: error.message,
+          status: error.response?.status,
+          data: JSON.stringify(error.response?.data, null, 2)
+        });
+      }
+
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to delete notice',
+        courseNoticeId: courseNoticeId
+      };
+    }
+  },
+
   // Add other course management related methods here
 };
 
