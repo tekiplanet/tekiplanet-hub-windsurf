@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Select, 
   SelectContent, 
@@ -23,6 +24,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,6 +32,7 @@ import * as z from 'zod';
 interface ServiceQuoteField {
   id: string;
   name: string;
+  label: string;
   type: string;
   required: boolean;
   options?: string[];
@@ -77,32 +80,60 @@ const ServiceQuoteRequest: React.FC = () => {
     const schemaFields: { [key: string]: z.ZodType } = {};
     
     quoteFields.forEach(field => {
+      const fieldLabel = field.label;
+      
       let fieldSchema: z.ZodType;
       
       switch(field.type) {
         case 'text':
+        case 'phone':
           fieldSchema = field.required 
-            ? z.string().min(1, `${field.name} is required`) 
+            ? z.string().min(1, `${fieldLabel} is required`) 
+            : z.string().optional();
+          break;
+        case 'number':
+          fieldSchema = field.required 
+            ? z.string().refine(val => !isNaN(Number(val)), { message: `${fieldLabel} must be a number` })
             : z.string().optional();
           break;
         case 'select':
           fieldSchema = field.required 
-            ? z.string().min(1, `Please select a ${field.name}`) 
+            ? z.string().min(1, `Please select a ${fieldLabel}`) 
             : z.string().optional();
+          break;
+        case 'multi-select':
+          fieldSchema = field.required 
+            ? z.array(z.string()).min(1, `Please select at least one ${fieldLabel}`) 
+            : z.array(z.string()).optional();
+          break;
+        case 'radio':
+          fieldSchema = field.required 
+            ? z.string().min(1, `Please select a ${fieldLabel}`) 
+            : z.string().optional();
+          break;
+        case 'checkbox':
+          fieldSchema = field.required 
+            ? z.boolean().refine(val => val === true, { message: `${fieldLabel} must be checked` })
+            : z.boolean().optional();
           break;
         case 'email':
           fieldSchema = field.required 
-            ? z.string().email(`Invalid ${field.name}`) 
-            : z.string().email(`Invalid ${field.name}`).optional();
+            ? z.string().email(`Invalid ${fieldLabel}`) 
+            : z.string().email(`Invalid ${fieldLabel}`).optional();
           break;
         case 'textarea':
           fieldSchema = field.required 
-            ? z.string().min(1, `${field.name} is required`) 
+            ? z.string().min(1, `${fieldLabel} is required`) 
+            : z.string().optional();
+          break;
+        case 'date':
+          fieldSchema = field.required 
+            ? z.string().refine(val => !isNaN(Date.parse(val)), { message: `${fieldLabel} must be a valid date` })
             : z.string().optional();
           break;
         default:
           fieldSchema = field.required 
-            ? z.string().min(1, `${field.name} is required`) 
+            ? z.string().min(1, `${fieldLabel} is required`) 
             : z.string().optional();
       }
       
@@ -116,11 +147,49 @@ const ServiceQuoteRequest: React.FC = () => {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: quoteFields.reduce((acc, field) => {
-      acc[field.id] = '';
-      return acc;
-    }, {} as any)
+    defaultValues: quoteFields.length > 0 
+      ? quoteFields.reduce((acc, field) => {
+          switch(field.type) {
+            case 'multi-select':
+              acc[field.id] = [];
+              break;
+            case 'checkbox':
+              acc[field.id] = false;
+            case 'number':
+            case 'date':
+              acc[field.id] = '';
+              break;
+            default:
+              acc[field.id] = '';
+          }
+          return acc;
+        }, {} as any)
+      : {}
   });
+
+  useEffect(() => {
+    if (quoteFields.length > 0) {
+      const defaultValues = quoteFields.reduce((acc, field) => {
+        switch(field.type) {
+          case 'multi-select':
+            acc[field.id] = [];
+            break;
+          case 'checkbox':
+            acc[field.id] = false;
+            break;
+          case 'number':
+          case 'date':
+            acc[field.id] = '';
+            break;
+          default:
+            acc[field.id] = '';
+        }
+        return acc;
+      }, {} as any);
+
+      form.reset(defaultValues);
+    }
+  }, [quoteFields, form.reset]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     // TODO: Implement quote request submission
@@ -156,41 +225,15 @@ const ServiceQuoteRequest: React.FC = () => {
                   render={({ field: formField }) => (
                     <FormItem>
                       <FormLabel>
-                        {field.name} {field.required && <span className="text-red-500">*</span>}
+                        {field.label} {field.required && <span className="text-red-500">*</span>}
                       </FormLabel>
-                      {field.type === 'text' && (
+                      {(field.type === 'text' || field.type === 'email' || field.type === 'phone' || field.type === 'number' || field.type === 'date') && (
                         <FormControl>
                           <Input 
-                            type="text" 
-                            id={field.id} 
-                            name={field.id} 
-                            required={field.required} 
-                            {...formField} 
-                          />
-                        </FormControl>
-                      )}
-
-                      {field.type === 'select' && field.options && (
-                        <FormControl>
-                          <Select onValueChange={formField.onChange} defaultValue={formField.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={`Select ${field.name}`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {field.options.map((option) => (
-                                <SelectItem key={option} value={option}>
-                                  {option}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                      )}
-
-                      {field.type === 'email' && (
-                        <FormControl>
-                          <Input 
-                            type="email" 
+                            type={field.type === 'number' ? 'number' : 
+                                   field.type === 'email' ? 'email' : 
+                                   field.type === 'date' ? 'date' : 
+                                   'text'} 
                             id={field.id} 
                             name={field.id} 
                             required={field.required} 
@@ -210,7 +253,91 @@ const ServiceQuoteRequest: React.FC = () => {
                         </FormControl>
                       )}
 
-                      {/* Add more input types as needed */}
+                      {field.type === 'select' && field.options && (
+                        <FormControl>
+                          <Select onValueChange={formField.onChange} defaultValue={formField.value}>
+                            <SelectTrigger>
+                              <SelectValue placeholder={`Select ${field.label}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {field.options.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                      )}
+
+                      {field.type === 'multi-select' && field.options && (
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-4">
+                            {field.options.map((option) => (
+                              <div key={option} className="flex items-center space-x-2">
+                                <Checkbox 
+                                  id={`${field.id}-${option}`}
+                                  checked={(formField.value ?? []).includes(option)}
+                                  onCheckedChange={(checked) => {
+                                    const currentValue = formField.value ?? [];
+                                    const newValue = checked 
+                                      ? [...currentValue, option]
+                                      : currentValue.filter(v => v !== option);
+                                    formField.onChange(newValue);
+                                  }}
+                                />
+                                <label 
+                                  htmlFor={`${field.id}-${option}`} 
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {option}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </FormControl>
+                      )}
+
+                      {field.type === 'radio' && field.options && (
+                        <FormControl>
+                          <RadioGroup 
+                            onValueChange={formField.onChange} 
+                            defaultValue={formField.value}
+                            className="grid grid-cols-2 gap-4"
+                          >
+                            {field.options.map((option) => (
+                              <div key={option} className="flex items-center space-x-2">
+                                <RadioGroupItem value={option} id={`${field.id}-${option}`} />
+                                <label 
+                                  htmlFor={`${field.id}-${option}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {option}
+                                </label>
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        </FormControl>
+                      )}
+
+                      {field.type === 'checkbox' && (
+                        <FormControl>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={field.id}
+                              checked={formField.value}
+                              onCheckedChange={formField.onChange}
+                            />
+                            <label 
+                              htmlFor={field.id} 
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {field.label}
+                            </label>
+                          </div>
+                        </FormControl>
+                      )}
+
                       <FormMessage />
                     </FormItem>
                   )}

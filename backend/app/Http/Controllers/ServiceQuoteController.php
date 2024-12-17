@@ -28,6 +28,7 @@ class ServiceQuoteController extends Controller
                 return [
                     'id' => $field->id,
                     'name' => $field->name,
+                    'label' => $field->label,
                     'type' => $field->type,
                     'required' => $field->required,
                     'options' => is_string($field->options) ? json_decode($field->options, true) : ($field->options ?? null)
