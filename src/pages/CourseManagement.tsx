@@ -346,8 +346,11 @@ const CourseManagement: React.FC = () => {
             <TabsTrigger value="schedule">
               <Calendar className="h-4 w-4 mr-2" /> Schedule
             </TabsTrigger>
-            <TabsTrigger value="notices">
+            <TabsTrigger value="notices" className="relative">
               <Bell className="h-4 w-4 mr-2" /> Notices
+              {notices.length > 0 && (
+                <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="exams">
               <FileText className="h-4 w-4 mr-2" /> Exams

@@ -51,7 +51,7 @@ export default function CourseNotices({
 
   React.useEffect(() => {
     if (loading === false && notices.length === 0) {
-      toast.warning('Could not fetch course notices', {
+      toast.warning('No new notifications', {
         description: 'Showing default notifications',
         duration: 3000
       });
