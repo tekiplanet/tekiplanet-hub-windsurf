@@ -91,10 +91,76 @@ class EnrollmentController extends Controller
             $paidAmount = $installments->where('status', 'paid')->sum('amount');
 
             // Find the next upcoming course schedule
-            $nextCourseSchedule = CourseSchedule::where('course_id', $enrollment->course_id)
-                ->where('start_date', '>=', now()->toDateString())
-                ->orderBy('start_date', 'asc')
-                ->first();
+            $nextCourseSchedule = null;
+            $schedules = CourseSchedule::where('course_id', $enrollment->course_id)
+                ->where('start_date', '<=', now()->toDateString())
+                ->where('end_date', '>=', now()->toDateString())
+                ->get();
+
+            if ($schedules->isNotEmpty()) {
+                $today = now();
+                $todayDayOfWeek = $today->dayOfWeek;
+
+                // Map PHP day of week to our days of week
+                $dayMap = [
+                    0 => 'Sun', 1 => 'Mon', 2 => 'Tue', 
+                    3 => 'Wed', 4 => 'Thu', 
+                    5 => 'Fri', 6 => 'Sat'
+                ];
+
+                // Find the next class day
+                $nextClassDate = null;
+                foreach ($schedules as $schedule) {
+                    $scheduleDays = explode(',', $schedule->days_of_week);
+                    
+                    // First, check for class days this week
+                    foreach ($scheduleDays as $day) {
+                        $dayIndex = array_search($day, $dayMap);
+                        
+                        if ($dayIndex !== false && $dayIndex >= $todayDayOfWeek) {
+                            $nextClassDate = $today->copy()->next($dayMap[$dayIndex]);
+                            break 2; // Exit both loops
+                        }
+                    }
+                }
+
+                // If no class day found this week, find the first day next week
+                if (!$nextClassDate) {
+                    foreach ($schedules as $schedule) {
+                        $scheduleDays = explode(',', $schedule->days_of_week);
+                        foreach ($scheduleDays as $day) {
+                            $dayIndex = array_search($day, $dayMap);
+                            if ($dayIndex !== false) {
+                                $nextClassDate = $today->copy()->next($dayMap[$dayIndex]);
+                                break 2; // Exit both loops
+                            }
+                        }
+                    }
+                }
+
+                // If we found a next class date, create a schedule object
+                if ($nextClassDate) {
+                    $nextCourseSchedule = new CourseSchedule([
+                        'start_date' => $nextClassDate->toDateString()
+                    ]);
+                }
+            }
+
+            // Fallback to original method if no schedule found
+            if (!$nextCourseSchedule) {
+                $nextCourseSchedule = CourseSchedule::where('course_id', $enrollment->course_id)
+                    ->where('start_date', '>=', now()->toDateString())
+                    ->orderBy('start_date', 'asc')
+                    ->first();
+            }
+
+            // Log detailed information about the next course schedule
+            Log::info('Next Course Schedule Determination', [
+                'course_id' => $enrollment->course_id,
+                'next_schedule_start_date' => $nextCourseSchedule ? $nextCourseSchedule->start_date : 'No schedule found',
+                'next_schedule_days_of_week' => $nextCourseSchedule ? $nextCourseSchedule->days_of_week : 'N/A',
+                'current_date' => now()->toDateString()
+            ]);
 
             // Determine next payment deadline logic
             $nextPaymentDeadline = null;

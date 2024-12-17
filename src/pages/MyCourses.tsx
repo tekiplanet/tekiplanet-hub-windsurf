@@ -693,7 +693,10 @@ export default function MyCourses() {
                       <div>
                         <p className="text-muted-foreground">Next Class</p>
                         <p className="font-medium">
-                          {enrollment.nextLesson || 'No upcoming classes'}
+                          {(() => {
+                            console.log('Next Lesson:', enrollment.nextLesson);
+                            return enrollment.nextLesson || 'No upcoming classes';
+                          })()}
                         </p>
                       </div>
                     </div>
