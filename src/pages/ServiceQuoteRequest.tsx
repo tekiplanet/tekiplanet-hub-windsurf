@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { apiClient } from '@/lib/axios';
+import PagePreloader from '@/components/ui/PagePreloader';
 import { motion } from 'framer-motion';
-import { useParams } from 'react-router-dom';
+import Dashboard from './Dashboard';
 import { 
   Form, 
   FormControl, 
@@ -24,59 +27,99 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-const webAppTypes = [
-  'Corporate Website',
-  'E-commerce Platform',
-  'Mobile App (iOS)',
-  'Mobile App (Android)',
-  'Cross-platform App',
-  'Portfolio Website',
-  'Web Application',
-  'Blog/Content Site'
-];
+interface ServiceQuoteField {
+  id: string;
+  name: string;
+  type: string;
+  required: boolean;
+  options?: string[];
+}
 
-const securityAssessmentTypes = [
-  'Network Security Audit',
-  'Penetration Testing',
-  'Vulnerability Assessment',
-  'Compliance Review',
-  'Cloud Security',
-  'Application Security'
-];
+interface ServiceDetails {
+  id: string;
+  name: string;
+  description: string;
+  short_description: string;
+  category: {
+    id: string;
+    name: string;
+  };
+}
 
-const budgetRanges = [
-  '₦50,000 - ₦200,000',
-  '₦200,000 - ₦500,000',
-  '₦500,000 - ₦1,000,000',
-  '₦1,000,000 - ₦5,000,000',
-  'Above ₦5,000,000'
-];
+const ServiceQuoteRequest: React.FC = () => {
+  const { categoryId, serviceId } = useParams<{ categoryId: string; serviceId: string }>();
+  const navigate = useNavigate();
+  const [serviceDetails, setServiceDetails] = useState<ServiceDetails | null>(null);
+  const [quoteFields, setQuoteFields] = useState<ServiceQuoteField[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function ServiceQuoteRequest() {
-  const { category, serviceId } = useParams<{ 
-    category: string, 
-    serviceId: string 
-  }>();
+  useEffect(() => {
+    const fetchServiceQuoteDetails = async () => {
+      try {
+        const response = await apiClient.get(`/services/${serviceId}/quote-details`);
+        
+        setServiceDetails(response.data.service);
+        setQuoteFields(response.data.quote_fields);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error fetching service quote details:', err);
+        setError('Failed to fetch service quote details');
+        setIsLoading(false);
+      }
+    };
 
-  const formSchema = z.object({
-    projectType: z.string().min(1, "Please select a project type"),
-    budget: z.string().min(1, "Please select a budget range"),
-    description: z.string().min(10, "Please provide more details"),
-    timeline: z.string().optional(),
-    companyName: z.string().optional(),
-    contactEmail: z.string().email("Invalid email address").optional()
-  });
+    fetchServiceQuoteDetails();
+  }, [serviceId]);
+
+  // Dynamically generate form schema based on quote fields
+  const generateFormSchema = () => {
+    const schemaFields: { [key: string]: z.ZodType } = {};
+    
+    quoteFields.forEach(field => {
+      let fieldSchema: z.ZodType;
+      
+      switch(field.type) {
+        case 'text':
+          fieldSchema = field.required 
+            ? z.string().min(1, `${field.name} is required`) 
+            : z.string().optional();
+          break;
+        case 'select':
+          fieldSchema = field.required 
+            ? z.string().min(1, `Please select a ${field.name}`) 
+            : z.string().optional();
+          break;
+        case 'email':
+          fieldSchema = field.required 
+            ? z.string().email(`Invalid ${field.name}`) 
+            : z.string().email(`Invalid ${field.name}`).optional();
+          break;
+        case 'textarea':
+          fieldSchema = field.required 
+            ? z.string().min(1, `${field.name} is required`) 
+            : z.string().optional();
+          break;
+        default:
+          fieldSchema = field.required 
+            ? z.string().min(1, `${field.name} is required`) 
+            : z.string().optional();
+      }
+      
+      schemaFields[field.id] = fieldSchema;
+    });
+
+    return z.object(schemaFields);
+  };
+
+  const formSchema = generateFormSchema();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      projectType: '',
-      budget: '',
-      description: '',
-      timeline: '',
-      companyName: '',
-      contactEmail: ''
-    }
+    defaultValues: quoteFields.reduce((acc, field) => {
+      acc[field.id] = '';
+      return acc;
+    }, {} as any)
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
@@ -85,161 +128,104 @@ export default function ServiceQuoteRequest() {
     // Integrate with backend service
   };
 
-  const renderFormFields = () => {
-    const projectTypes = category === 'software-engineering' 
-      ? webAppTypes 
-      : securityAssessmentTypes;
+  if (isLoading) {
+    return <PagePreloader />;
+  }
 
-    return (
-      <>
-        <FormField
-          control={form.control}
-          name="projectType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {category === 'software-engineering' 
-                  ? 'Type of Website/App' 
-                  : 'Type of Security Assessment'}
-              </FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {projectTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="budget"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Budget Range</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select budget range" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {budgetRanges.map((range) => (
-                    <SelectItem key={range} value={range}>
-                      {range}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Project Details</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Provide detailed description of your project"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="timeline"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Preferred Timeline</FormLabel>
-              <FormControl>
-                <Input 
-                  type="text" 
-                  placeholder="e.g., 2-3 months" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="companyName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Company Name (Optional)</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Your company name" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="contactEmail"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Contact Email</FormLabel>
-              <FormControl>
-                <Input 
-                  type="email" 
-                  placeholder="Your contact email" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </>
-    );
-  };
+  if (error) {
+    return <div className="text-center text-red-500 py-8">{error}</div>;
+  }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto p-4 max-w-2xl"
-    >
-      <h1 className="text-2xl md:text-3xl font-bold mb-6">
-        {category === 'software-engineering' 
-          ? 'Software Development Quote Request' 
-          : 'Cyber Security Assessment Quote'}
-      </h1>
+    <Dashboard>
+      <div className="container mx-auto p-4 max-w-2xl">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1 className="text-2xl font-bold mb-4">{serviceDetails?.name} Quote Request</h1>
+          <p className="mb-6">{serviceDetails?.description}</p>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {renderFormFields()}
-          
-          <Button type="submit" className="w-full">
-            Submit Quote Request
-          </Button>
-        </form>
-      </Form>
-    </motion.div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {quoteFields.map((field) => (
+                <FormField
+                  key={field.id}
+                  control={form.control}
+                  name={field.id}
+                  render={({ field: formField }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {field.name} {field.required && <span className="text-red-500">*</span>}
+                      </FormLabel>
+                      {field.type === 'text' && (
+                        <FormControl>
+                          <Input 
+                            type="text" 
+                            id={field.id} 
+                            name={field.id} 
+                            required={field.required} 
+                            {...formField} 
+                          />
+                        </FormControl>
+                      )}
+
+                      {field.type === 'select' && field.options && (
+                        <FormControl>
+                          <Select onValueChange={formField.onChange} defaultValue={formField.value}>
+                            <SelectTrigger>
+                              <SelectValue placeholder={`Select ${field.name}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {field.options.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                      )}
+
+                      {field.type === 'email' && (
+                        <FormControl>
+                          <Input 
+                            type="email" 
+                            id={field.id} 
+                            name={field.id} 
+                            required={field.required} 
+                            {...formField} 
+                          />
+                        </FormControl>
+                      )}
+
+                      {field.type === 'textarea' && (
+                        <FormControl>
+                          <Textarea 
+                            id={field.id} 
+                            name={field.id} 
+                            required={field.required} 
+                            {...formField} 
+                          />
+                        </FormControl>
+                      )}
+
+                      {/* Add more input types as needed */}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ))}
+
+              <Button type="submit" className="w-full">
+                Submit Quote Request
+              </Button>
+            </form>
+          </Form>
+        </motion.div>
+      </div>
+    </Dashboard>
   );
-}
+};
+
+export default ServiceQuoteRequest;

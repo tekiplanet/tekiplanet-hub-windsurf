@@ -63,6 +63,14 @@ const AppContent = () => {
                   <Route index element={<Dashboard />} />
                   <Route path="*" element={<Dashboard />} />
                   <Route path="payment-confirmation" element={<PaymentConfirmation />} />
+                  <Route 
+                    path="services/quote/:categoryId/:serviceId" 
+                    element={
+                      <ProtectedRoute>
+                        <ServiceQuoteRequest />
+                      </ProtectedRoute>
+                    } 
+                  />
                 </Routes>
               </ProtectedRoute>
             }

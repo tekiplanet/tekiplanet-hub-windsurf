@@ -238,6 +238,13 @@ const Dashboard = ({ children }: { children?: React.ReactNode }) => {
           path="services/quote/cyber-security/:serviceId" 
           element={<CyberSecurityQuote />} 
         />
+      <Route path="services">
+        <Route index element={<ServicesPage />} />
+        <Route 
+          path="quote/:categoryId/:serviceId" 
+          element={<ServiceQuoteRequestPage />} 
+        />
+      </Route>        
         <Route path="quotes" element={<QuoteRequestsListPage />} />
         <Route path="quotes/:quoteId" element={<QuoteDetailsPage />} />
         <Route path="projects" element={<ProjectsListPage />} />

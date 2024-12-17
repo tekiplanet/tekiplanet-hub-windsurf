@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
+import PagePreloader from '@/components/ui/PagePreloader';
 
 // Helper function to map icon names to Lucide icons
 const getLucideIcon = (iconName: string) => {
@@ -75,11 +76,11 @@ const ServicesPage: React.FC = () => {
   }, []);
 
   const handleServiceSelect = (categoryId: string, serviceId: string) => {
-    navigate(`/services/${categoryId}/${serviceId}`);
+    navigate(`/dashboard/services/quote/${categoryId}/${serviceId}`);
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading services...</div>;
+    return <PagePreloader />;
   }
 
   if (error) {
@@ -140,7 +141,7 @@ const ServicesPage: React.FC = () => {
                 <ServiceIcon className="h-12 w-12 text-primary" />
                 <div>
                   <CardTitle>{category.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-2">
                     {category.description}
                   </p>
                 </div>
