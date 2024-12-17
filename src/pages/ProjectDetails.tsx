@@ -62,9 +62,9 @@ const mockProjectDetails = {
 
 export default function ProjectDetailsPage() {
   return (
-    <Dashboard>
+    // <Dashboard>
       <ProjectDetails />
-    </Dashboard>
+    // </Dashboard>
   );
 }
 
@@ -90,13 +90,6 @@ function ProjectDetails() {
     >
       <header className="sticky top-0 z-10 bg-background border-b p-4 flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate('/dashboard/projects')}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
           <div>
             <h1 className="text-xl font-bold">{mockProjectDetails.name}</h1>
             <Badge 
@@ -125,11 +118,31 @@ function ProjectDetails() {
         onValueChange={setActiveTab} 
         className="flex-grow overflow-y-auto"
       >
-        <TabsList className="sticky top-0 z-10 bg-background border-b grid grid-cols-4 px-4 py-2">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="stages">Stages</TabsTrigger>
-          <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
+        <TabsList className="sticky top-0 z-10 bg-muted/50 border-b grid grid-cols-4 gap-1 px-1 py-1 h-auto rounded-none">
+          <TabsTrigger 
+            value="overview" 
+            className="text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm transition-colors"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="stages" 
+            className="text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm transition-colors"
+          >
+            Stages
+          </TabsTrigger>
+          <TabsTrigger 
+            value="team" 
+            className="text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm transition-colors"
+          >
+            Team
+          </TabsTrigger>
+          <TabsTrigger 
+            value="files" 
+            className="text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm transition-colors"
+          >
+            Files
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="p-4 space-y-6">

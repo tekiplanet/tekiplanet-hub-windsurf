@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -56,9 +56,9 @@ const mockProjects = [
 
 export default function ProjectsListPage() {
   return (
-    <Dashboard>
+    // <Dashboard>
       <ProjectsList />
-    </Dashboard>
+    // </Dashboard>
   );
 }
 
@@ -88,7 +88,7 @@ function ProjectsList() {
       animate={{ opacity: 1 }}
       className="space-y-6 p-4 md:p-6 bg-background"
     >
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
         <Button 
           variant="outline" 
@@ -99,7 +99,7 @@ function ProjectsList() {
         </Button>
       </div>
 
-      <div className="flex space-x-2">
+      <div className="flex space-x-2 mb-6">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <Input 
@@ -146,56 +146,51 @@ function ProjectsList() {
           filteredProjects.map((project) => (
             <Card 
               key={project.id} 
-              className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/dashboard/projects/${project.id}`)}
+              className="hover:shadow-md transition-shadow"
             >
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">{project.name}</h3>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground">
-                      {project.client}
-                    </span>
-                    <Badge 
-                      variant="outline" 
-                      className={`${getStatusColor(project.status)} text-xs`}
-                    >
-                      {project.status}
-                    </Badge>
-                  </div>
+              <CardHeader 
+                className="flex flex-row items-center justify-between space-y-0 p-4 pb-0"
+                onClick={() => navigate(`/dashboard/projects/${project.id}`)}
+              >
+                <div className="space-y-1.5">
+                  <h3 className="font-semibold text-lg leading-none tracking-tight">
+                    {project.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {project.client}
+                  </p>
+                </div>
+                <Badge 
+                  variant="outline" 
+                  className={`${getStatusColor(project.status)} text-xs`}
+                >
+                  {project.status}
+                </Badge>
+              </CardHeader>
+              <CardContent 
+                className="p-4 pt-2 cursor-pointer"
+                onClick={() => navigate(`/dashboard/projects/${project.id}`)}
+              >
+                <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                     <Server className="h-4 w-4" />
                     <span>{project.startDate} - {project.endDate}</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      className={`h-2.5 rounded-full ${
-                        project.status === 'Completed' 
-                          ? 'bg-green-500' 
-                          : project.status === 'In Progress' 
-                          ? 'bg-yellow-500' 
-                          : 'bg-blue-500'
-                      }`} 
-                      style={{ width: `${project.progress}%` }}
-                    ></div>
-                  </div>
+                  <span className="font-bold text-primary">{project.budget}</span>
                 </div>
-                <div className="text-right">
-                  <span className="font-bold text-primary block mb-2">{project.budget}</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-500">Cancel</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                  <div 
+                    className={`h-2 rounded-full ${
+                      project.status === 'Completed' 
+                        ? 'bg-green-500' 
+                        : project.status === 'In Progress' 
+                        ? 'bg-yellow-500' 
+                        : 'bg-blue-500'
+                    }`} 
+                    style={{ width: `${project.progress}%` }}
+                  ></div>
                 </div>
-              </div>
+              </CardContent>
             </Card>
           ))
         )}

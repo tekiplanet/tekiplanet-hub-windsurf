@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -78,7 +78,7 @@ function QuoteRequestsList() {
       animate={{ opacity: 1 }}
       className="space-y-6 p-4 md:p-6 bg-background"
     >
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Quote Requests</h1>
         <Button 
           variant="outline" 
@@ -89,7 +89,7 @@ function QuoteRequestsList() {
         </Button>
       </div>
 
-      <div className="flex space-x-2">
+      <div className="flex space-x-2 mb-6">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <Input 
@@ -136,43 +136,38 @@ function QuoteRequestsList() {
           filteredRequests.map((request) => (
             <Card 
               key={request.id} 
-              className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/dashboard/quotes/${request.id}`)}
+              className="hover:shadow-md transition-shadow"
             >
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">{request.projectName}</h3>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground">
-                      {request.serviceType}
-                    </span>
-                    <Badge 
-                      variant="outline" 
-                      className={`${getStatusColor(request.status)} text-xs`}
-                    >
-                      {request.status}
-                    </Badge>
-                  </div>
+              <CardHeader 
+                className="flex flex-row items-center justify-between space-y-0 p-4 pb-0"
+                onClick={() => navigate(`/dashboard/quotes/${request.id}`)}
+              >
+                <div className="space-y-1.5">
+                  <h3 className="font-semibold text-lg leading-none tracking-tight">
+                    {request.projectName}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {request.serviceType}
+                  </p>
+                </div>
+                <Badge 
+                  variant="outline" 
+                  className={`${getStatusColor(request.status)} text-xs`}
+                >
+                  {request.status}
+                </Badge>
+              </CardHeader>
+              <CardContent 
+                className="p-4 pt-2 cursor-pointer"
+                onClick={() => navigate(`/dashboard/quotes/${request.id}`)}
+              >
+                <div className="flex justify-between items-center">
                   <div className="text-sm text-muted-foreground">
                     Submitted: {request.submittedDate}
                   </div>
-                </div>
-                <div className="text-right">
                   <span className="font-bold text-primary">{request.budget}</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-500">Cancel</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
-              </div>
+              </CardContent>
             </Card>
           ))
         )}
