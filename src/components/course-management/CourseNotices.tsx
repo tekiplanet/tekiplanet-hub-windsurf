@@ -137,7 +137,7 @@ export default function CourseNotices({
                 )}
                 <CardContent className="p-4">
                   <div className="flex gap-4">
-                    <div className={`mt-1 p-2 rounded-full bg-muted ${
+                    <div className={`w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full flex-shrink-0 flex items-center justify-center bg-muted ${
                       notice.priority === 'high' ? 'text-destructive' : 'text-muted-foreground'
                     }`}>
                       {getNoticeIcon(notice.type)}
