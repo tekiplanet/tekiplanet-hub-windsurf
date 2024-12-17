@@ -228,6 +228,11 @@ const ExamSchedule: React.FC<ExamScheduleProps> = ({
         };
     };
 
+    // Helper function to format status text
+    const formatStatusText = (status: string) => {
+        return status.replace(/_/g, ' ');
+    };
+
     useEffect(() => {
         const fetchExams = async () => {
             if (!courseId) {
@@ -444,6 +449,12 @@ const ExamSchedule: React.FC<ExamScheduleProps> = ({
                                         ))}
                                     </div>
 
+                                    {exam.score ? (
+                                        <div className="text-sm text-gray-600">
+                                            Status: {formatStatusText(exam.userExamStatus)}
+                                        </div>
+                                    ) : null}
+
                                     <Badge 
                                         className={
                                             exam.userExamStatus === 'missed' ? 'bg-destructive text-white' :
@@ -454,7 +465,7 @@ const ExamSchedule: React.FC<ExamScheduleProps> = ({
                                             'bg-gray-500 text-white'
                                         }
                                     >
-                                        {exam.userExamStatus}
+                                        {formatStatusText(exam.userExamStatus)}
                                     </Badge>
 
                                     {/* Score Display */}
