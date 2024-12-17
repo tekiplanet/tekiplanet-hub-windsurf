@@ -77,6 +77,20 @@ const ExamSchedule: React.FC<{
                exam.userExamStatus !== 'in_progress';
     };
 
+    // Helper function to determine if an exam is upcoming
+    const isExamUpcoming = (exam: Exam): boolean => {
+        // If exam date is not set, it can't be upcoming
+        if (!exam.date) return false;
+
+        const now = new Date();
+        const examDate = new Date(exam.date);
+
+        // Check if the exam date is in the future
+        return examDate > now && 
+               // And the user has an existing exam attempt or record
+               (exam.attempts && exam.attempts > 0);
+    };
+
     useEffect(() => {
         const fetchExams = async () => {
             if (!courseId) {
@@ -95,7 +109,7 @@ const ExamSchedule: React.FC<{
                     : [];
 
                 // Transform exams to ensure topics is always an array
-                // And update status for missed exams
+                // And update status for missed and upcoming exams
                 const transformedExams = fetchedExams.map(exam => {
                     const transformedExam = {
                         ...exam,
@@ -108,6 +122,10 @@ const ExamSchedule: React.FC<{
                     // Update status to missed if applicable
                     if (isExamMissed(transformedExam)) {
                         transformedExam.userExamStatus = 'missed';
+                    } 
+                    // Update status to upcoming if applicable
+                    else if (isExamUpcoming(transformedExam)) {
+                        transformedExam.userExamStatus = 'upcoming';
                     }
 
                     return transformedExam;
@@ -214,6 +232,7 @@ const ExamSchedule: React.FC<{
                                     <Badge 
                                         className={
                                             exam.userExamStatus === 'missed' ? 'bg-destructive text-white' :
+                                            exam.userExamStatus === 'upcoming' ? 'bg-blue-500 text-white' :
                                             exam.userExamStatus === 'not_started' ? 'bg-primary text-white' :
                                             exam.userExamStatus === 'completed' ? 'bg-green-500 text-white' :
                                             exam.userExamStatus === 'in_progress' ? 'bg-yellow-500 text-white' :
@@ -224,7 +243,7 @@ const ExamSchedule: React.FC<{
                                     </Badge>
                                 </div>
 
-                                {/* Only show participate button if not missed and not started */}
+                                {/* Only show participate button if not started */}
                                 {exam.userExamStatus === 'not_started' && (
                                     <Button 
                                         variant="outline" 
