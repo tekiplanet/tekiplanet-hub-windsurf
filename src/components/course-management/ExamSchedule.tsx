@@ -15,11 +15,14 @@ interface Exam {
     id: string;
     title: string;
     type: 'quiz' | 'midterm' | 'final' | 'assignment';
-    date: Date;
+    date: Date | string;
     duration: string;
     userExamStatus: string;
     score?: number;
     totalScore?: number;
+    total_score?: number;
+    pass_percentage?: number;
+    passing_score?: number;
     instructions?: string;
     topics?: string[] | string | null;
     attempts?: number;
@@ -129,8 +132,14 @@ export default function ExamSchedule({ courseId, refreshExams }: {
                exam.userExamStatus === 'completed';
     };
 
-    // Helper function to determine the exam score display
-    const getExamScoreDisplay = (exam: Exam): string => {
+    // Helper function to determine the exam score display and color
+    const getExamScoreDisplay = (exam: Exam): { 
+        score: string, 
+        color: string 
+    } => {
+        // Log the entire exam object for debugging
+        console.log('Full Exam Object:', JSON.stringify(exam, null, 2));
+
         // Normalize dates to compare just the date part
         const now = new Date();
         const examDate = new Date(exam.date);
@@ -148,22 +157,66 @@ export default function ExamSchedule({ courseId, refreshExams }: {
 
         // If exam is past or today, completed or in progress, and has attempts
         if (isExamDatePassed && isCompletedOrInProgress) {
-            // If score is null or undefined, show "Awaiting Result"
-            if (exam.score == null) {
-                return "Awaiting Result";
+            // Parse score if it's a string like "50 / 100"
+            let userScore = 0;
+            let totalScore = 0;
+
+            if (typeof exam.score === 'string' && exam.score.includes('/')) {
+                const [scoreStr, totalStr] = exam.score.split('/').map(s => s.trim());
+                userScore = parseFloat(scoreStr);
+                totalScore = parseFloat(totalStr);
+            } else if (typeof exam.score === 'number') {
+                userScore = exam.score;
+                totalScore = exam.totalScore ?? exam.total_score ?? 100; // default to 100 if not provided
             }
+
+            // Detailed console log for debugging
+            console.log('Exam Score Parsing Details:', {
+                originalScore: exam.score,
+                userScore,
+                totalScore,
+                passPercentage: exam.pass_percentage,
+                passPercentageType: typeof exam.pass_percentage,
+                passPercentageExists: exam.pass_percentage !== undefined,
+                userExamStatus: exam.userExamStatus
+            });
             
-            // If total score is available, display it
-            if (exam.totalScore != null) {
-                return `${exam.score} / ${exam.totalScore}`;
+            // Determine score color based on pass percentage
+            let color = "text-green-600"; // default to green
+            
+            if (exam.pass_percentage != null) {
+                // Calculate score percentage
+                const scorePercentage = totalScore ? (userScore / totalScore) * 100 : 0;
+                
+                // Convert pass_percentage to a number if it's a string
+                const passingThreshold = typeof exam.pass_percentage === 'string' 
+                    ? parseFloat(exam.pass_percentage) 
+                    : exam.pass_percentage;
+                
+                // Additional console log for percentage calculation
+                console.log('Score Percentage Calculation:', {
+                    scorePercentage,
+                    passPercentage: passingThreshold,
+                    comparisonResult: scorePercentage < passingThreshold
+                });
+
+                if (scorePercentage < passingThreshold) {
+                    color = "text-red-600"; // red if below passing percentage
+                }
             }
-            
-            // Fallback to just showing the score
-            return `${exam.score}`;
+
+            // Return the score display
+            return { 
+                score: `${userScore} / ${totalScore}`, 
+                color 
+            };
         }
 
         // Default case: no score to display
-        return "—";
+        return { 
+            score: "—", 
+            color: "text-gray-500" 
+        };
     };
 
     useEffect(() => {
@@ -341,12 +394,8 @@ export default function ExamSchedule({ courseId, refreshExams }: {
                                       exam.attempts > 0) && (
                                         <div className="text-sm">
                                             <span className="font-medium">Score: </span>
-                                            <span className={
-                                                getExamScoreDisplay(exam) === "Awaiting Result" 
-                                                    ? "text-yellow-600" 
-                                                    : "text-green-600"
-                                            }>
-                                                {getExamScoreDisplay(exam)}
+                                            <span className={getExamScoreDisplay(exam).color}>
+                                                {getExamScoreDisplay(exam).score}
                                             </span>
                                         </div>
                                     )}

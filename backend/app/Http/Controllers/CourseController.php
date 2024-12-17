@@ -190,6 +190,7 @@ class CourseController extends Controller
                         'date' => $exam->date,
                         'duration' => $exam->duration,
                         'difficulty' => $exam->difficulty,
+                        'pass_percentage' => $exam->pass_percentage,
                         'userExamStatus' => $userExam ? $userExam->status : 'not_started',
                         'score' => $displayScore,
                         'attempts' => $userExam ? $userExam->attempts : 0,
