@@ -9,19 +9,17 @@ import {
   Clock, 
   Users, 
   FileUp, 
-  CreditCard 
+  CreditCard,
+  Download,
+  Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const mockProjectDetails = {
   id: 'PRJ-001',
@@ -60,6 +58,25 @@ const mockProjectDetails = {
   ]
 };
 
+const mockInvoices = [
+  {
+    id: 'INV-001',
+    projectName: 'E-commerce Platform Development',
+    amount: '₦2,500,000',
+    date: '2024-01-15',
+    status: 'Paid',
+    downloadLink: '/invoices/INV-001.pdf'
+  },
+  {
+    id: 'INV-002',
+    projectName: 'Mobile App Design',
+    amount: '₦1,200,000',
+    date: '2024-02-20',
+    status: 'Pending',
+    downloadLink: '/invoices/INV-002.pdf'
+  }
+];
+
 export default function ProjectDetailsPage() {
   return (
     // <Dashboard>
@@ -80,6 +97,17 @@ function ProjectDetails() {
       case 'Pending': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handlePayInvoice = (invoice: typeof mockInvoices[0]) => {
+    // Simulate payment process
+    alert(`Proceeding to pay invoice ${invoice.id}`);
+    // TODO: Implement actual payment logic
+  };
+
+  const downloadInvoice = (downloadLink: string) => {
+    // In a real app, this would trigger a file download
+    window.open(downloadLink, '_blank');
   };
 
   return (
@@ -118,7 +146,7 @@ function ProjectDetails() {
         onValueChange={setActiveTab} 
         className="flex-grow overflow-y-auto"
       >
-        <TabsList className="sticky top-0 z-10 bg-muted/50 border-b grid grid-cols-4 gap-1 px-1 py-1 h-auto rounded-none">
+        <TabsList className="sticky top-0 z-10 bg-muted/50 border-b grid grid-cols-5 gap-1 px-1 py-1 h-auto rounded-none">
           <TabsTrigger 
             value="overview" 
             className="text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm transition-colors"
@@ -142,6 +170,12 @@ function ProjectDetails() {
             className="text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm transition-colors"
           >
             Files
+          </TabsTrigger>
+          <TabsTrigger 
+            value="invoices" 
+            className="text-xs px-2 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm transition-colors"
+          >
+            Invoices
           </TabsTrigger>
         </TabsList>
 
@@ -255,6 +289,74 @@ function ProjectDetails() {
               <Button variant="ghost" size="sm">Download</Button>
             </div>
           ))}
+        </TabsContent>
+
+        <TabsContent value="invoices" className="p-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Project Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockInvoices.map((invoice) => (
+                  <div 
+                    key={invoice.id} 
+                    className="border rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4"
+                  >
+                    <div className="flex-grow w-full">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mb-2">
+                        <h3 className="font-semibold text-sm sm:text-base flex-grow">{invoice.projectName}</h3>
+                        <Badge 
+                          variant="outline"
+                          className={`
+                            text-xs 
+                            ${invoice.status === 'Paid' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'}
+                          `}
+                        >
+                          {invoice.status}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Invoice:</span>
+                          <p className="font-medium">{invoice.id}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Amount:</span>
+                          <p className="font-bold">{invoice.amount}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Date:</span>
+                          <p>{invoice.date}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-row sm:flex-col space-x-2 sm:space-x-0 sm:space-y-2 w-full sm:w-auto">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                        onClick={() => downloadInvoice(invoice.downloadLink)}
+                      >
+                        <Download className="mr-2 h-4 w-4" /> Download
+                      </Button>
+                      {invoice.status === 'Pending' && (
+                        <Button 
+                          size="sm"
+                          className="flex-1 sm:flex-none"
+                          onClick={() => handlePayInvoice(invoice)}
+                        >
+                          <CreditCard className="mr-2 h-4 w-4" /> Pay Now
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </motion.div>
