@@ -31,6 +31,11 @@ import ITConsultingPage from "./ITConsulting"
 import ServiceQuoteRequestPage from "./ServiceQuoteRequest"
 import SoftwareEngineeringQuote from "./SoftwareEngineeringQuote"
 import CyberSecurityQuote from "./CyberSecurityQuote"
+import { FileText, Server } from "lucide-react"
+import QuoteRequestsListPage from "./QuoteRequestsList"
+import QuoteDetailsPage from "./QuoteDetails"
+import ProjectsListPage from "./ProjectsList"
+import ProjectDetailsPage from "./ProjectDetails"
 import {
   HoverCard,
   HoverCardContent,
@@ -54,30 +59,42 @@ const menuItems: MenuItem[] = [
     icon: <Home className="w-4 h-4" />
   },
   {
+    label: "Wallet",
+    path: "/dashboard/wallet",
+    icon: <Wallet className="w-4 h-4" />
+  },  
+  {
     label: "Academy",
     path: "/dashboard/academy",
     icon: <BookOpen className="w-4 h-4" />
   },
+  {
+    label: "My Courses",
+    path: "/dashboard/academy/my-courses",
+    icon: <GraduationCap className="w-4 h-4" />
+  }, 
   {
     label: "Services",
     path: "/dashboard/services",
     icon: <Briefcase className="w-4 h-4" />
   },
   {
-    label: "My Courses",
-    path: "/dashboard/academy/my-courses",
-    icon: <GraduationCap className="w-4 h-4" />
+    label: "Quote Requests",
+    path: "/dashboard/quotes",
+    icon: <FileText className="w-4 h-4" />
   },
   {
-    label: "Wallet",
-    path: "/dashboard/wallet",
-    icon: <Wallet className="w-4 h-4" />
+    label: "Projects",
+    path: "/dashboard/projects",
+    icon: <Server className="w-4 h-4" />
   },
+
   {
     label: "Settings",
     path: "/dashboard/settings",
     icon: <Settings className="w-4 h-4" />
   }
+
 ];
 
 const Dashboard = ({ children }: { children?: React.ReactNode }) => {
@@ -221,6 +238,10 @@ const Dashboard = ({ children }: { children?: React.ReactNode }) => {
           path="services/quote/cyber-security/:serviceId" 
           element={<CyberSecurityQuote />} 
         />
+        <Route path="quotes" element={<QuoteRequestsListPage />} />
+        <Route path="quotes/:quoteId" element={<QuoteDetailsPage />} />
+        <Route path="projects" element={<ProjectsListPage />} />
+        <Route path="projects/:projectId" element={<ProjectDetailsPage />} />        
         <Route path="services/consulting" element={<ITConsultingPage />} />
         <Route path="payment-confirmation" element={
           <>

@@ -367,7 +367,7 @@ const CourseManagement: React.FC = () => {
             <h1 className="text-xl md:text-3xl font-bold break-words mb-2">{course.title}</h1>
             <p className="text-sm text-muted-foreground mb-3">{course.description}</p>
             <Badge 
-              variant={enrollment?.payment_status === 'fully_paid' ? "default" : "secondary"}
+              variant={enrollment?.payment_status === 'fully_paid' ? "secondary" : "default"}
               className="mb-2 text-xs"
             >
               {enrollment?.payment_status === 'fully_paid' ? "Tuition Paid" : "Payment Required"}
