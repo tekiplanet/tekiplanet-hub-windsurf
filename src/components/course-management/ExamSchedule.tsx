@@ -406,7 +406,9 @@ const ExamSchedule: React.FC<ExamScheduleProps> = ({
             });
 
             // Check if exam date is today or in the future
-            return examDate >= nowDate && exam.userExamStatus !== 'completed';
+            return examDate >= nowDate && 
+            exam.userExamStatus !== 'completed' && 
+            exam.userExamStatus !== 'in_progress';
         });
 
         // Detailed logging of filtered exams
