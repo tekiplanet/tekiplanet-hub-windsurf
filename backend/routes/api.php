@@ -13,6 +13,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceQuoteController;
+use App\Http\Controllers\QuoteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -102,3 +103,8 @@ Route::prefix('settings')->group(function () {
 
 Route::get('/services/categories', [ServiceController::class, 'getCategoriesWithServices'])->middleware(['auth:sanctum']);
 Route::get('/services/{serviceId}/quote-details', [ServiceQuoteController::class, 'getServiceDetails'])->middleware(['auth:sanctum']);
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/quotes', [QuoteController::class, 'store']);
+    Route::get('/quotes', [QuoteController::class, 'index']);
+});

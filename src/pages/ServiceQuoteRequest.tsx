@@ -46,6 +46,7 @@ import { settingsService } from '@/services/settingsService';
 import { ArrowRightIcon, ArrowLeftIcon, CalendarIcon, CheckIcon } from 'lucide-react';
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import toast, { Toaster } from 'react-hot-toast';
 
 interface ServiceQuoteField {
   id: string;
@@ -268,10 +269,25 @@ const ServiceQuoteRequest: React.FC = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // TODO: Implement quote request submission
-    console.log('Quote Request:', values);
-    // Integrate with backend service
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const response = await apiClient.post('/quotes', {
+        service_id: serviceId,
+        ...values
+      });
+
+      if (response.data.success) {
+        // Show success toast
+        toast.success('Quote submitted successfully!');
+        
+        // Redirect to quotes list
+        navigate('/quote-requests');
+      }
+    } catch (error) {
+      // Handle submission error
+      toast.error('Failed to submit quote. Please try again.');
+      console.error('Quote submission error:', error);
+    }
   };
 
   if (isLoading) {
@@ -284,6 +300,7 @@ const ServiceQuoteRequest: React.FC = () => {
 
   return (
     <Dashboard>
+      <Toaster position="top-right" reverseOrder={false} />
       <div className="container mx-auto p-4 max-w-2xl">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

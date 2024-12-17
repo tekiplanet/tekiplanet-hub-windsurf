@@ -2,7 +2,7 @@ import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import useAuthStore from '@/store/useAuthStore';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from 'react-hot-toast';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import PagePreloader from '@/components/ui/PagePreloader';
@@ -110,6 +110,10 @@ const AppContent = () => {
           } />
         </Routes>
       </Suspense>
+      <Toaster 
+        position="top-right"
+        reverseOrder={false}
+      />
       <Toaster />
       <Sonner />
     </Router>

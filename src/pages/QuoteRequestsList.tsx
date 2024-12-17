@@ -1,177 +1,113 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  PlusCircle 
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { apiClient } from '@/lib/api-client'; 
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
 
-// Mock data for quote requests
-const mockQuoteRequests = [
-  {
-    id: 'QR-001',
-    projectName: 'E-commerce Platform',
-    serviceType: 'Web Development',
-    status: 'In Progress',
-    submittedDate: '2024-01-15',
-    budget: '₦2,500,000'
-  },
-  {
-    id: 'QR-002',
-    projectName: 'Mobile Banking App',
-    serviceType: 'App Development',
-    status: 'Pending',
-    submittedDate: '2024-02-03',
-    budget: '₦5,000,000'
-  },
-  {
-    id: 'QR-003',
-    projectName: 'Corporate Website Redesign',
-    serviceType: 'Web Development',
-    status: 'Completed',
-    submittedDate: '2024-01-10',
-    budget: '₦1,200,000'
-  }
-];
-
-export default function QuoteRequestsListPage() {
-  return (
-    <QuoteRequestsList />
-  );
+interface Quote {
+  id: number;
+  service: {
+    name: string;
+  };
+  industry: string;
+  budget_range: string;
+  status: 'pending' | 'reviewed' | 'accepted' | 'rejected';
+  project_deadline: string;
+  created_at: string;
 }
 
-function QuoteRequestsList() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+const QuoteRequestsList: React.FC = () => {
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'In Progress': return 'bg-yellow-100 text-yellow-800';
-      case 'Pending': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+  useEffect(() => {
+    const fetchQuotes = async () => {
+      try {
+        const response = await apiClient.get('/quotes');
+        
+        if (response.data.success) {
+          setQuotes(response.data.quotes.data);
+        } else {
+          toast.error('Failed to load quote requests');
+        }
+      } catch (error) {
+        toast.error('Error fetching quote requests');
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchQuotes();
+  }, []);
+
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'pending': return 'secondary';
+      case 'reviewed': return 'outline';
+      case 'accepted': return 'success';
+      case 'rejected': return 'destructive';
+      default: return 'secondary';
     }
   };
 
-  const filteredRequests = mockQuoteRequests.filter(request => 
-    (filterStatus ? request.status === filterStatus : true) &&
-    (request.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     request.serviceType.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  if (isLoading) {
+    return <div>Loading quote requests...</div>;
+  }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6 p-4 md:p-6 bg-background"
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">Quote Requests</h1>
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={() => navigate('/dashboard/services/quote/new')}
-        >
-          <PlusCircle className="h-5 w-5" />
-        </Button>
-      </div>
-
-      <div className="flex space-x-2 mb-6">
-        <div className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <Input 
-            placeholder="Search quotes..." 
-            className="pl-10 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6">My Quote Requests</h1>
+      
+      {quotes.length === 0 ? (
+        <div className="text-center py-10">
+          <p>You have no quote requests yet.</p>
+          <Button 
+            onClick={() => navigate('/service-quote-request')} 
+            className="mt-4"
+          >
+            Create New Quote Request
+          </Button>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Filter className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setFilterStatus(null)}>
-              All Statuses
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterStatus('Pending')}>
-              Pending
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterStatus('In Progress')}>
-              In Progress
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterStatus('Completed')}>
-              Completed
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <motion.div 
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="space-y-4"
-      >
-        {filteredRequests.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No quote requests found
-          </div>
-        ) : (
-          filteredRequests.map((request) => (
-            <Card 
-              key={request.id} 
-              className="hover:shadow-md transition-shadow"
-            >
-              <CardHeader 
-                className="flex flex-row items-center justify-between space-y-0 p-4 pb-0"
-                onClick={() => navigate(`/dashboard/quotes/${request.id}`)}
-              >
-                <div className="space-y-1.5">
-                  <h3 className="font-semibold text-lg leading-none tracking-tight">
-                    {request.projectName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {request.serviceType}
-                  </p>
-                </div>
-                <Badge 
-                  variant="outline" 
-                  className={`${getStatusColor(request.status)} text-xs`}
-                >
-                  {request.status}
+      ) : (
+        <div className="grid gap-4">
+          {quotes.map((quote) => (
+            <Card key={quote.id}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle>{quote.service.name}</CardTitle>
+                <Badge variant={getStatusVariant(quote.status)}>
+                  {quote.status}
                 </Badge>
               </CardHeader>
-              <CardContent 
-                className="p-4 pt-2 cursor-pointer"
-                onClick={() => navigate(`/dashboard/quotes/${request.id}`)}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-muted-foreground">
-                    Submitted: {request.submittedDate}
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Industry</p>
+                    <p>{quote.industry}</p>
                   </div>
-                  <span className="font-bold text-primary">{request.budget}</span>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Budget Range</p>
+                    <p>{quote.budget_range}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Project Deadline</p>
+                    <p>{new Date(quote.project_deadline).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Submitted On</p>
+                    <p>{new Date(quote.created_at).toLocaleDateString()}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ))
-        )}
-      </motion.div>
-    </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default QuoteRequestsList;
