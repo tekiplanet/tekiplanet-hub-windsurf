@@ -187,22 +187,45 @@ const ServiceQuoteRequest: React.FC = () => {
   }, [quoteFields, form.reset]);
 
   const nextStep = () => {
-    // Validate current step's fields before proceeding
-    const stepFields = currentStep === 0 
-      ? ['industry', 'budgetRange', 'contactMethod'] 
-      : currentStep === 1 ? quoteFields.map(field => field.id) : [];
-    
-    const isStepValid = stepFields.every(field => 
-      !form.formState.errors[field]
-    );
+    const validateCurrentStep = () => {
+      switch(currentStep) {
+        case 0: {
+          const requiredFields = ['industry', 'budgetRange', 'contactMethod', 'projectDescription', 'projectDeadline'];
+          const hasErrors = requiredFields.some(field => 
+            form.formState.errors[field] || !form.getValues(field)
+          );
+          
+          if (hasErrors) {
+            toast.error("Please fill all required fields");
+            return false;
+          }
+          return true;
+        }
+        case 1: {
+          if (quoteFields.length > 0) {
+            const requiredDynamicFields = quoteFields.filter(field => field.required);
+            const hasEmptyRequiredFields = requiredDynamicFields.some(field => {
+              const value = form.getValues(`dynamicFields.${field.id}`);
+              return value === undefined || value === null || value === '' || 
+                     (Array.isArray(value) && value.length === 0);
+            });
+            
+            if (hasEmptyRequiredFields) {
+              toast.error("Please fill all required fields");
+              return false;
+            }
+          }
+          return true;
+        }
+        default:
+          return true;
+      }
+    };
 
-    if (isStepValid) {
-      setCurrentStep(prev => Math.min(prev + 1, 2));
-    } else {
-      // Trigger validation
-      form.trigger(stepFields);
-    }
-  };
+  if (validateCurrentStep()) {
+    setCurrentStep(prev => Math.min(prev + 1, 2));
+  }
+};
 
   const prevStep = () => {
     setCurrentStep(prev => Math.max(prev - 1, 0));
@@ -286,33 +309,106 @@ const ServiceQuoteRequest: React.FC = () => {
           <h1 className="text-2xl font-bold mb-4">{serviceDetails?.name} Quote Request</h1>
           <p className="mb-6">{serviceDetails?.description}</p>
 
-          {/* Multi-step Form Navigation */}
-          <div className="flex justify-center mb-6">
-            <div className="flex items-center space-x-2">
-              <Button
-                variant={currentStep === 0 ? 'default' : 'outline'}
-                onClick={() => setCurrentStep(0)}
-              >
-                Quote Details
-              </Button>
-              <div className="w-8 h-1 bg-gray-300"></div>
-              <Button
-                variant={currentStep === 1 ? 'default' : 'outline'}
-                onClick={() => setCurrentStep(1)}
-                disabled={quoteFields.length === 0}
-              >
-                Project Details
-              </Button>
-              <div className="w-8 h-1 bg-gray-300"></div>
-              <Button
-                variant={currentStep === 2 ? 'default' : 'outline'}
-                onClick={() => setCurrentStep(2)}
-                disabled={quoteFields.length === 0}
-              >
-                Review
-              </Button>
-            </div>
-          </div>
+{/* Multi-step Form Navigation */}
+<div className="flex justify-center mb-6">
+  <div className="flex items-center space-x-2">
+    <Button
+      variant={currentStep === 0 ? 'default' : 'outline'}
+      onClick={() => {
+        if (currentStep !== 0) {
+          const requiredFields = ['industry', 'budgetRange', 'contactMethod', 'projectDescription', 'projectDeadline'];
+          const hasErrors = requiredFields.some(field => 
+            form.formState.errors[field] || !form.getValues(field)
+          );
+          
+          if (hasErrors) {
+            toast.error("Please fill all required fields");
+            return;
+          }
+          setCurrentStep(0);
+        }
+      }}
+    >
+      Quote Details
+    </Button>
+    <div className="w-4 h-1 bg-gray-300"></div>
+    <Button
+      variant={currentStep === 1 ? 'default' : 'outline'}
+      onClick={() => {
+        if (currentStep !== 1) {
+          // Validate Quote Details first
+          const requiredFields = ['industry', 'budgetRange', 'contactMethod', 'projectDescription', 'projectDeadline'];
+          const hasQuoteDetailsErrors = requiredFields.some(field => 
+            form.formState.errors[field] || !form.getValues(field)
+          );
+          
+          if (hasQuoteDetailsErrors) {
+            toast.error("Please fill all required fields");
+            return;
+          }
+
+          // Then validate Project Details if needed
+          if (quoteFields.length > 0) {
+            const requiredDynamicFields = quoteFields.filter(field => field.required);
+            const hasEmptyRequiredFields = requiredDynamicFields.some(field => {
+              const value = form.getValues(`dynamicFields.${field.id}`);
+              return value === undefined || value === null || value === '' || 
+                     (Array.isArray(value) && value.length === 0);
+            });
+            
+            if (hasEmptyRequiredFields) {
+              toast.error("Please fill all required fields");
+              return;
+            }
+          }
+
+          setCurrentStep(1);
+        }
+      }}
+      disabled={quoteFields.length === 0}
+    >
+      Project Details
+    </Button>
+    <div className="w-4 h-1 bg-gray-300"></div>
+    <Button
+      variant={currentStep === 2 ? 'default' : 'outline'}
+      onClick={() => {
+        if (currentStep !== 2) {
+          // Validate Quote Details first
+          const requiredFields = ['industry', 'budgetRange', 'contactMethod', 'projectDescription', 'projectDeadline'];
+          const hasQuoteDetailsErrors = requiredFields.some(field => 
+            form.formState.errors[field] || !form.getValues(field)
+          );
+          
+          if (hasQuoteDetailsErrors) {
+            toast.error("Please fill all required fields");
+            return;
+          }
+
+          // Then validate Project Details if needed
+          if (quoteFields.length > 0) {
+            const requiredDynamicFields = quoteFields.filter(field => field.required);
+            const hasEmptyRequiredFields = requiredDynamicFields.some(field => {
+              const value = form.getValues(`dynamicFields.${field.id}`);
+              return value === undefined || value === null || value === '' || 
+                     (Array.isArray(value) && value.length === 0);
+            });
+            
+            if (hasEmptyRequiredFields) {
+              toast.error("Please fill all required fields");
+              return;
+            }
+          }
+
+          setCurrentStep(2);
+        }
+      }}
+      disabled={quoteFields.length === 0}
+    >
+      Review
+    </Button>
+  </div>
+</div>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -425,6 +521,7 @@ const ServiceQuoteRequest: React.FC = () => {
                                           key={industry}
                                           onSelect={() => {
                                             form.setValue("industry", industry);
+                                            setOpen(false);
                                           }}
                                         >
                                           <CheckIcon
@@ -589,7 +686,11 @@ const ServiceQuoteRequest: React.FC = () => {
                                 <Calendar
                                   mode="single"
                                   selected={formField.value ? new Date(formField.value) : undefined}
-                                  onSelect={(date) => formField.onChange(date?.toISOString())}
+                                  onSelect={(date) => {
+                                    formField.onChange(date?.toISOString());
+                                    setOpen(false);
+                                  }}
+                                  
                                   disabled={(date) =>
                                     date < new Date()
                                   }
